@@ -16,6 +16,7 @@ import { EditScreenDialog } from "@/components/screen-manager/EditScreenDialog";
 import type { ScreenRecord } from "@/data/screenManagerData";
 import { QueryState } from "@/components/ui/query-state";
 import { usePulseScreens } from "@/hooks/api/screenPulse";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 const defaultFilters: ScreenFilters = { chain: "all", location: "all", pulseStatus: "all", lionisStatus: "all" };
 
@@ -119,7 +120,7 @@ const ScreenManagerContent = ({ data }: { data: ScreenRecord[] }) => {
             <TableBody>
               {paginatedData.map((screen) => (
                 <TableRow key={screen.id}>
-                  <TableCell className="font-medium">{screen.theatreName}</TableCell>
+                  <TableCell><TheatreNameWithInfo name={screen.theatreName} theatreRef={screen.theatreId} /></TableCell>
                   <TableCell>{screen.chainName}</TableCell>
                   <TableCell>{screen.screenName}</TableCell>
                   <TableCell className="text-muted-foreground">{screen.city}, {screen.state}, {screen.country}</TableCell>

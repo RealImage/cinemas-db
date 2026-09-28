@@ -5,12 +5,14 @@ import { Theatre } from "@/types";
 import { Column } from "@/components/ui/data-table"; // Import the Column type from data-table
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/dateUtils";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 export const useTheatreColumns = (): Column<Theatre>[] => {
   const columns: Column<Theatre>[] = [
     {
       header: "Theatre Name",
-      accessor: "name"
+      accessor: "name",
+      cell: (row: Theatre) => <TheatreNameWithInfo name={row.name} theatreRef={row.id} nameClassName="" />,
     },
     {
       header: "Display Name",

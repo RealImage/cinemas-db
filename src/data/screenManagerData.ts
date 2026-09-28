@@ -1,6 +1,8 @@
 
 export interface ScreenRecord {
   id: string;
+  /** CinemaDB theatre id (set by the API; the mock rows have none) */
+  theatreId?: string;
   theatreName: string;
   chainName: string;
   screenName: string;

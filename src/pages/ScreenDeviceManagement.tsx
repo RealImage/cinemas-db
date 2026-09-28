@@ -9,13 +9,13 @@ import { FilterButton } from "@/components/ui/filter-drawer";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/ui/data-table/pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useTheatres } from "@/hooks/api/theatres";
 import { QueryState } from "@/components/ui/query-state";
 import { Theatre } from "@/types";
 import { TheatreLogsDialog } from "@/components/TheatreLogsDialog";
 import { ScreenDeviceFilterPanel, ScreenDeviceFilters } from "@/components/screen-device-management/ScreenDeviceFilterPanel";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 const defaultFilters: ScreenDeviceFilters = {
   location: "all",
@@ -156,22 +156,7 @@ const ScreenDeviceManagement = () => {
                     onClick={() => goView(t)}
                   >
                     <TableCell>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="font-medium">{t.name}</div>
-                          </TooltipTrigger>
-                          <TooltipContent className="text-xs space-y-1">
-                            <div>
-                              <span className="font-semibold">Also Known As:</span>{" "}
-                              {t.alternateNames?.join(", ") || t.displayName || "—"}
-                            </div>
-                            <div>
-                              <span className="font-semibold">Theatre ID:</span> {t.id}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <TheatreNameWithInfo name={t.name} theatreRef={t.id} />
                     </TableCell>
                     <TableCell>{t.chainName}</TableCell>
                     <TableCell className="text-muted-foreground">

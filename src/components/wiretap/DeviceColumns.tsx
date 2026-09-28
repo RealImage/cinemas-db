@@ -10,6 +10,7 @@ import {
   TooltipTrigger 
 } from "@/components/ui/tooltip";
 import { getActivationStatusIcon, getMappingStatusIcon, getVPNStatusIcon } from "./StatusIcons";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 const getConnectivityStatusColor = (status: ConnectivityStatus | undefined) => {
   switch (status) {
@@ -120,22 +121,8 @@ export const getDeviceColumns = (): Column<WireTAPDevice>[] => [
   {
     header: "Theatre",
     accessor: "theatreName",
-    cell: (row: WireTAPDevice) => (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger className="flex items-center gap-1">
-            {row.theatreName} <Info className="h-4 w-4 text-gray-500" />
-          </TooltipTrigger>
-          <TooltipContent className="max-w-md">
-            <div className="space-y-1">
-              <p><strong>Alternate Names:</strong> {row.theatreAlternateNames?.join(", ") || "None"}</p>
-              <p><strong>UUID:</strong> {row.theatreUUID}</p>
-              <p><strong>Address:</strong> {row.theatreAddress}</p>
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    ),
+    cell: (row: WireTAPDevice) =>
+      row.theatreName ? <TheatreNameWithInfo name={row.theatreName} theatreRef={row.theatreId || null} nameClassName="" /> : "—",
     sortable: true
   },
   {
