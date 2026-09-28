@@ -12,18 +12,34 @@ export interface LocationColumn<T> {
 
 const dash = (v: ReactNode) => (v === null || v === undefined || v === "" ? "—" : v);
 
+/** Translations, with the alternate (e.g. former) name first; all of them are searchable. */
+function translationsColumn<T extends { alternateName: string | null; translations: string[] }>(): LocationColumn<T> {
+  return {
+    header: "Translations",
+    cell: (r) => {
+      const names = [...new Set([r.alternateName, ...r.translations].filter(Boolean) as string[])];
+      return names.length ? (
+        <span className="block max-w-xs truncate" title={names.join(", ")}>{names.join(", ")}</span>
+      ) : "—";
+    },
+  };
+}
+
 const countries: LocationColumn<Country>[] = [
+  translationsColumn<Country>(),
   { header: "ISO 3166-2", sort: "iso2", cell: (r) => r.iso2 },
   { header: "ISO 3166-3", sort: "iso3", cell: (r) => r.iso3 },
 ];
 
 const provinces: LocationColumn<Province>[] = [
+  translationsColumn<Province>(),
   { header: "Code", sort: "isoCode", cell: (r) => r.isoCode, className: "whitespace-nowrap" },
   { header: "Country", sort: "countryName", cell: (r) => r.countryName },
   { header: "Country Code", sort: "countryCode", cell: (r) => r.countryCode },
 ];
 
 const cities: LocationColumn<City>[] = [
+  translationsColumn<City>(),
   { header: "Code", sort: "code", cell: (r) => dash(r.code), className: "whitespace-nowrap" },
   { header: "Province", sort: "provinceName", cell: (r) => `${r.provinceName}, ${r.countryName}` },
   { header: "Province Code", sort: "provinceCode", cell: (r) => r.provinceCode, className: "whitespace-nowrap" },

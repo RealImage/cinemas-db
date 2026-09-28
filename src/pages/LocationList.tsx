@@ -107,7 +107,7 @@ function LocationListView({ entity }: { entity: LocationEntity }) {
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search this list" className="pl-8"
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={entity === "countries" || entity === "provinces" || entity === "cities" ? "Search names, old names, translations" : "Search this list"} className="pl-8"
             aria-label={`Search ${info.label.toLowerCase()}`} />
         </div>
         {entity !== "metro_areas" && (

@@ -57,7 +57,7 @@ export const ENTITY_SQL: Record<LocationEntity, EntitySql> = {
       (SELECT count(*) FROM provinces p WHERE p.country_id = c.id AND NOT p.is_deleted) AS "provinceCount",
       ${reviewCount("countries", "c")} AS "reviewCount"`,
     from: "countries c",
-    search: ["c.name", "c.alternate_name", "c.local_language_name", "c.iso3166_2", "c.iso3166_3"],
+    search: ["c.name", "c.alternate_name", "c.local_language_name", "array_to_string(c.translations, ' ')", "c.iso3166_2", "c.iso3166_3"],
     sorts: { name: "lower(c.name)", iso2: "c.iso3166_2", iso3: "c.iso3166_3", updatedBy: "c.updated_by", updatedAt: "c.updated_at" },
     softDelete: true,
   },
@@ -70,7 +70,7 @@ export const ENTITY_SQL: Record<LocationEntity, EntitySql> = {
       (SELECT count(*) FROM cities ci WHERE ci.province_id = p.id AND NOT ci.is_deleted) AS "cityCount",
       ${reviewCount("provinces", "p")} AS "reviewCount"`,
     from: "provinces p JOIN countries pc ON pc.id = p.country_id",
-    search: ["p.name", "p.alternate_name", "p.iso_code", "p.code", "pc.name"],
+    search: ["p.name", "p.alternate_name", "p.local_language_name", "array_to_string(p.translations, ' ')", "p.iso_code", "p.code", "pc.name"],
     sorts: {
       name: "lower(p.name)", isoCode: "p.iso_code", countryName: "lower(pc.name)", countryCode: "pc.iso3166_2",
       updatedBy: "p.updated_by", updatedAt: "p.updated_at",
@@ -88,7 +88,7 @@ export const ENTITY_SQL: Record<LocationEntity, EntitySql> = {
       ${reviewCount("cities", "ci")} AS "reviewCount"`,
     from: `cities ci JOIN provinces pp ON pp.id = ci.province_id JOIN countries pc ON pc.id = pp.country_id
       JOIN timezones tz ON tz.id = ci.timezone_id LEFT JOIN metro_areas ma ON ma.id = ci.metro_area_id`,
-    search: ["ci.name", "ci.alternate_name", "ci.code", "pp.name", "pc.name"],
+    search: ["ci.name", "ci.alternate_name", "ci.local_language_name", "array_to_string(ci.translations, ' ')", "ci.code", "pp.name", "pc.name"],
     sorts: {
       name: "lower(ci.name)", code: "ci.code", provinceName: "lower(pp.name)", provinceCode: "pp.iso_code",
       metroAreaName: "lower(ma.name)", updatedBy: "ci.updated_by", updatedAt: "ci.updated_at",
