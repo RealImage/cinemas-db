@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FormActions } from "@/components/ui/form-actions";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Pencil, CheckCircle2, Circle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { IcountCamera, IcountScreen, makeEmptyCamera } from "@/data/icountData";
 import EditIcountCameraDialog from "./EditIcountCameraDialog";
 import type { IcountCamerasInput } from "@/hooks/api/icount";
+import { common } from "@/i18n/common";
 
 const LIST_PATH = "/qube-appliances/icount-cameras";
 
@@ -94,10 +96,10 @@ export const IcountTheatreEditor = ({
             <p className="text-sm text-muted-foreground">{theatreName} ({theatreId})</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate(LIST_PATH)}>Cancel</Button>
-          <Button onClick={onSave} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
-        </div>
+        <FormActions>
+          <Button variant="outline" onClick={() => navigate(LIST_PATH)}>{common.cancel}</Button>
+          <Button onClick={onSave} loading={saving}>{common.save}</Button>
+        </FormActions>
       </div>
 
       {/* Theatre Details */}

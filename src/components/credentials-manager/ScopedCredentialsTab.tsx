@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { useDeleteDeviceCredential, useSaveDeviceCredential } from "@/hooks/api/
 import { CredentialCell } from "./CredentialValues";
 import { ViewScopedCredentialDialog } from "./ViewScopedCredentialDialog";
 import { EditScopedCredentialDialog, CredentialDraft } from "./EditScopedCredentialDialog";
+import { common } from "@/i18n/common";
 
 interface Props {
   device: CredentialDevice;
@@ -161,13 +162,14 @@ export const ScopedCredentialsTab = ({ device, scope, credentials }: Props) => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleteCredential.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteCredential.isPending ? "Deleting…" : "Delete"}
+              {deleteCredential.isPending && <Loader2 className="animate-spin" aria-hidden />}
+              {common.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

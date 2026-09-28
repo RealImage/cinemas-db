@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Search, AlertTriangle } from "lucide-react";
 import { searchWireTAPDevice } from "@/hooks/api/theatres";
 import { WireTAPDevice } from "@/types/wireTAP";
+import { common } from "@/i18n/common";
 
 interface AddWireTAPToTheatreDialogProps {
   open: boolean;
@@ -228,14 +229,12 @@ export function AddWireTAPToTheatreDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={handleClose}>{common.cancel}</Button>
           <Button
             onClick={handleConfirm}
             disabled={!searchResult || isMappedToOtherTheatre}
           >
-            Confirm
+            {common.confirm}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -8,7 +8,7 @@ import { XIcon, Home, LogOut, ExternalLink, ChevronLeft, ChevronRight } from "lu
 import { NavItem } from "./NavItem";
 import { NavItemWithSubmenu } from "./NavItemWithSubmenu";
 import { Separator } from "@/components/ui/separator";
-import { Building2, LinkIcon, Monitor, Building, FileText, LayoutDashboard, List, Users, Bell, Settings, Map, ClipboardList, HardDrive, ClipboardCheck, Activity, Server, Radio, Zap, Cpu, MonitorSmartphone, ShieldCheck, Camera, KeyRound } from "lucide-react";
+import { Building2, LinkIcon, Monitor, Building, FileText, LayoutDashboard, List, Users, Bell, Settings, Map, ClipboardList, HardDrive, ClipboardCheck, Activity, Server, Radio, Zap, Cpu, MonitorSmartphone, ShieldCheck, Camera, KeyRound, Globe, MapPinned, Clock, GitCompare } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -130,6 +130,31 @@ export const SidebarNav = ({
     path: "/screen-pulse/reports",
     icon: FileText
   }];
+  const locationSubItems = [{
+    label: "Countries",
+    path: "/locations/countries",
+    icon: Globe
+  }, {
+    label: "Provinces",
+    path: "/locations/provinces",
+    icon: Map
+  }, {
+    label: "Cities",
+    path: "/locations/cities",
+    icon: Building2
+  }, {
+    label: "Metro Areas",
+    path: "/locations/metro-areas",
+    icon: MapPinned
+  }, {
+    label: "Timezones",
+    path: "/locations/timezones",
+    icon: Clock
+  }, {
+    label: "Review",
+    path: "/locations/review",
+    icon: GitCompare
+  }];
   const additionalNavItems = [{
     icon: <ClipboardCheck size={20} />,
     label: "Approvals & Conflicts",
@@ -146,11 +171,6 @@ export const SidebarNav = ({
     label: "Reports",
     path: "/reports",
     disabled: false
-  }, {
-    icon: <Map size={20} />,
-    label: "Location Management",
-    path: "#",
-    disabled: true
   }, {
     icon: <Users size={20} />,
     label: "User Management",
@@ -239,7 +259,12 @@ export const SidebarNav = ({
         {/* Approvals & Conflicts */}
         {additionalNavItems.map((item, i) => <NavItem key={`additional-${i}`} icon={item.icon} label={item.label} path={item.path} isActive={isActive(item.path)} disabled={item.disabled} collapsed={isCollapsed} />)}
         
-        {bottomNavItems.map((item, i) => <NavItem key={`bottom-${i}`} icon={item.icon} label={item.label} path={item.path} isActive={isActive(item.path)} disabled={item.disabled} collapsed={isCollapsed} />)}
+        {bottomNavItems.slice(0, 2).map((item, i) => <NavItem key={`bottom-${i}`} icon={item.icon} label={item.label} path={item.path} isActive={isActive(item.path)} disabled={item.disabled} collapsed={isCollapsed} />)}
+
+        {/* Location Management with submenu */}
+        <NavItemWithSubmenu icon={Map} label="Location Management" basePath="/locations" subItems={locationSubItems} isCollapsed={isCollapsed} />
+
+        {bottomNavItems.slice(2).map((item, i) => <NavItem key={`bottom-${i + 2}`} icon={item.icon} label={item.label} path={item.path} isActive={isActive(item.path)} disabled={item.disabled} collapsed={isCollapsed} />)}
       </nav>
       
       {/* Footer links with combined Terms/Privacy */}

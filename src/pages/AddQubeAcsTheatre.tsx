@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FormActions } from "@/components/ui/form-actions";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { ArrowLeft, Pencil, CheckCircle2, Circle } from "lucide-react";
@@ -15,6 +16,7 @@ import { useApplianceLookupTheatre, useEnrolApplianceTheatre, type ApplianceLook
 import { QueryState } from "@/components/ui/query-state";
 import { cn } from "@/lib/utils";
 import EditScreenDeviceDialog from "@/components/qube-acs/EditScreenDeviceDialog";
+import { common } from "@/i18n/common";
 
 type Status = "Active" | "Device Paused" | "Inactive";
 
@@ -80,10 +82,10 @@ const AddQubeAcsTheatreForm = ({ theatre }: { theatre: ApplianceLookupDetail }) 
             <p className="text-sm text-muted-foreground">{theatre.theatreName} ({theatre.theatreId})</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate("/qube-appliances/qube-acs")}>Cancel</Button>
-          <Button onClick={onSave} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save"}</Button>
-        </div>
+        <FormActions>
+          <Button variant="outline" onClick={() => navigate("/qube-appliances/qube-acs")}>{common.cancel}</Button>
+          <Button onClick={onSave} loading={save.isPending}>{common.save}</Button>
+        </FormActions>
       </div>
 
       {/* Section 1: Theatre Details */}

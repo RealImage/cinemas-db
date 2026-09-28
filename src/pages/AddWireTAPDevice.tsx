@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { 
   ArrowLeft, 
   ArrowRight, 
-  Save, 
   HardDrive, 
   Wifi, 
   Database, 
@@ -20,6 +19,7 @@ import BasicDetailsForm from "@/components/wiretap/BasicDetailsForm";
 import HardwareSpecsForm from "@/components/wiretap/HardwareSpecsForm";
 import ConnectivitySpecsForm from "@/components/wiretap/ConnectivitySpecsForm";
 import { toWireTAPPayload, useCreateWireTAPDevice } from "@/hooks/api/wiretap";
+import { common } from "@/i18n/common";
 
 const AddWireTAPDevice = () => {
   const navigate = useNavigate();
@@ -203,8 +203,8 @@ const AddWireTAPDevice = () => {
                   Next <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               ) : (
-                <Button onClick={handleSubmit} disabled={createDevice.isPending}>
-                  <Save className="h-4 w-4 mr-2" /> {createDevice.isPending ? "Saving…" : "Save Device"}
+                <Button onClick={handleSubmit} loading={createDevice.isPending} className="min-w-20">
+                  {common.save}
                 </Button>
               )}
             </div>

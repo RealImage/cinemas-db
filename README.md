@@ -9,6 +9,7 @@ CinemaDB is Qube Cinema's master data app for theatres, chains, screens and the 
 - **Devices master:** screen devices, TDL devices, credentials manager
 - **Screen Pulse:** dashboard, environment, projection and screen managers, reports
 - **Approvals & conflicts**
+- **Location management:** countries, provinces, cities, metro areas, timezones, and a Reference sync review queue
 
 ## Stack
 
@@ -31,6 +32,12 @@ In development, Vite proxies `/api` to the API server on `API_PORT`.
 
 Masked credential and agent configuration values are encrypted with `CREDENTIALS_ENCRYPTION_KEY` (see `.env.example`). Development falls back to a built-in key; production must set its own (`openssl rand -base64 32`), and changing it later makes stored masked values unreadable.
 
+### Locations and Reference sync
+
+Location master data (`db/seeds/data/locations.json`) comes from [GeoNames](https://www.geonames.org/) (CC BY 4.0): every country, plus the provinces and the cities of 100,000+ people in the countries that have theatres. Timezones come from the IANA tz database; their UTC and DST offsets are derived from the IANA ID at runtime, never typed in. Theatres link to a city (`theatres.city_id`), and their city, state, country and timezone text follow it.
+
+Reference sync compares CinemaDB with GeoNames and IANA and lists every difference on *Location Management → Review* as New, Missing, Mismatch or Duplicate. It changes nothing on its own, except linking an unlinked record to the reference record it matches; admins decide each item, and every decision is logged. The API runs it nightly at `LOCATION_SYNC_HOUR` (default 2, server time) and on *Run now*; it downloads about 5 MB and needs internet access. Set `LOCATION_SYNC_SCHEDULE=off` to disable the nightly run.
+
 ## Scripts
 
 | Command | What it does |
@@ -49,6 +56,7 @@ Masked credential and agent configuration values are encrypted with `CREDENTIALS
 | `npm run db:migrate` | Apply pending migrations |
 | `npm run db:seed` | Load sample data |
 | `npm run db:seed:one -- <name>` | Run one seeder (e.g. `credentials`) |
+| `npm run db:seed:one -- locations --force` | Re-seed locations even after admins have edited or reviewed them (discards those changes and their logs) |
 | `npm run db:reset` | Drop everything, re-migrate and re-seed |
 | `npm run db:psql` | Open `psql` in the container |
 

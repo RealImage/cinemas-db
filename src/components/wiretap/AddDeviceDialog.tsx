@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { common } from "@/i18n/common";
 
 interface AddDeviceDialogProps {
   isOpen: boolean;
@@ -183,9 +184,7 @@ const AddDeviceDialog = ({ isOpen, onOpenChange, onDeviceRegister }: AddDeviceDi
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={handleClose}>{common.cancel}</Button>
           <Button 
             onClick={handleRegister}
             disabled={!fetchedDetails && !showManualRegistration}

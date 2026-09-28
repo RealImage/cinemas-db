@@ -5,11 +5,9 @@
  */
 export const common = {
   save: "Save",
-  saving: "Saving…",
   cancel: "Cancel",
   close: "Close",
   delete: "Delete",
-  deleting: "Deleting…",
   confirm: "Confirm",
   continue: "Continue",
   retry: "Retry",

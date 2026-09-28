@@ -11,6 +11,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
+import { common } from "@/i18n/common";
 
 interface DeprecateVersionDialogProps {
   open: boolean;
@@ -61,7 +62,7 @@ export function DeprecateVersionDialog({
         </div>
 
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={handleCancel}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel onClick={handleCancel}>{common.cancel}</AlertDialogCancel>
           <AlertDialogAction onClick={handleConfirm}>
             Deprecate Version
           </AlertDialogAction>

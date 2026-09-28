@@ -28,7 +28,7 @@ const THEATRE_COLUMNS = `
   coalesce(t.company_id, '') AS "companyId", coalesce(co.name, '') AS "companyName",
   t.exhibitor_integrator_companies AS "exhibitorIntegratorCompanies", t.listing, coalesce(t.type, '') AS type,
   coalesce(t.address, '') AS address, coalesce(t.city, '') AS city, coalesce(t.state, '') AS state,
-  coalesce(t.country, '') AS country, coalesce(t.postal_code, '') AS "postalCode",
+  coalesce(t.country, '') AS country, t.city_id AS "cityId", coalesce(t.postal_code, '') AS "postalCode",
   coalesce(t.phone_number, '') AS "phoneNumber", coalesce(t.email, '') AS email, t.website, t.timezone,
   t.status, t.ad_integrators AS "adIntegrators", t.notes, t.closure_details AS "closureDetails",
   t.latitude, t.longitude, t.location_type AS "locationType",
@@ -135,6 +135,26 @@ function validate(body: TheatreInput, creating: boolean) {
   }
 }
 
+const LOCATION_TEXT_KEYS = ["city", "state", "country", "timezone"];
+
+/** The city a theatre is set to: undefined when not sent, null when cleared. */
+async function resolveCity(client: pg.PoolClient, theatreId: string, cityId: unknown) {
+  if (cityId === undefined) return undefined;
+  if (cityId === null || cityId === "") return null;
+  const { rows } = await client.query<{ id: string; name: string; province: string; country: string; timezone: string; is_deleted: boolean }>(
+    `SELECT ci.id, ci.name, p.name AS province, c.name AS country, tz.name AS timezone, ci.is_deleted
+     FROM cities ci JOIN provinces p ON p.id = ci.province_id JOIN countries c ON c.id = p.country_id
+     JOIN timezones tz ON tz.id = ci.timezone_id WHERE ci.id = $1
+     FOR SHARE OF ci`, [cityId]); // a concurrent city deactivation waits for this link
+  const city = rows[0];
+  if (!city) throw httpError(400, `City ${cityId} does not exist`);
+  if (city.is_deleted) {
+    const { rows: current } = await client.query("SELECT 1 FROM theatres WHERE id = $1 AND city_id = $2", [theatreId, cityId]);
+    if (!current.length) throw httpError(400, `${city.name} is deactivated`);
+  }
+  return city;
+}
+
 async function resolveOrg(client: pg.PoolClient, table: "chains" | "companies", id: unknown) {
   if (id === undefined) return undefined;
   if (id === null || id === "") return null;
@@ -227,8 +247,21 @@ async function applyTheatre(client: pg.PoolClient, id: string, body: TheatreInpu
     sets.push(`${column} = $${params.length}`);
   };
 
+  // A theatre's city comes from Locations; its city, state, country and timezone text follow it
+  const city = await resolveCity(client, id, body.cityId);
+  if (city !== undefined) {
+    set("city_id", city?.id ?? null);
+    if (city) {
+      set("city", city.name);
+      set("state", city.province);
+      set("country", city.country);
+      set("timezone", city.timezone);
+    }
+  }
+
   for (const [key, [column, convert]] of Object.entries(SCALAR_FIELDS)) {
     if (!(key in body)) continue;
+    if (city && LOCATION_TEXT_KEYS.includes(key)) continue;
     const raw = body[key];
     set(column, convert ? convert(raw) : key === "name" ? String(raw).trim() : blankToNull(raw));
   }

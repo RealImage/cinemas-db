@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, Pencil, Plus, Settings2, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Settings2, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
@@ -184,7 +184,8 @@ export const ConfigurationsTab = ({ agent, scope, rows, onEditAgent }: Props) =>
               disabled={remove.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {remove.isPending ? common.deleting : common.delete}
+              {remove.isPending && <Loader2 className="animate-spin" aria-hidden />}
+              {common.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -24,6 +24,7 @@ import { Combobox } from "@/components/ui/combobox";
 import type { FleetTask } from "@/pages/TaskManagement";
 import { FLEET_TIMEZONES as timezones, type FleetTaskOptions } from "@/data/fleetData";
 import { useFleetTaskOptions } from "@/hooks/api/fleet";
+import { common } from "@/i18n/common";
 
 interface AddTaskDialogProps {
   open: boolean;
@@ -294,9 +295,7 @@ export const AddTaskDialog = ({ open, onOpenChange }: AddTaskDialogProps) => {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{common.cancel}</Button>
             <Button type="submit">Continue</Button>
           </DialogFooter>
         </form>

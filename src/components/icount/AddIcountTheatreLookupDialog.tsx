@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useIcountLookup } from "@/hooks/api/icount";
 import { cn } from "@/lib/utils";
+import { common } from "@/i18n/common";
 
 interface Props {
   open: boolean;
@@ -81,7 +82,7 @@ export const AddIcountTheatreLookupDialog = ({ open, onOpenChange }: Props) => {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{common.cancel}</Button>
           <Button onClick={proceed} disabled={!selectedId}>Proceed</Button>
         </DialogFooter>
       </DialogContent>

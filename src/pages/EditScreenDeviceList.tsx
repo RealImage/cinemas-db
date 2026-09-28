@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Save, Building2 } from "lucide-react";
+import { ArrowLeft, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { QueryState } from "@/components/ui/query-state";
 import { useTheatre } from "@/hooks/api/theatres";
 import { useSaveScreenDeviceConfig } from "@/hooks/api/screens";
 import { ApiError } from "@/lib/api";
+import { common } from "@/i18n/common";
 
 const EditScreenDeviceList = () => {
   const { id } = useParams();
@@ -76,8 +77,8 @@ const EditScreenDeviceList = () => {
             {theatre.chainName} · {theatre.city}, {theatre.state}, {theatre.country}
           </p>
         </div>
-        <Button onClick={handleSave} disabled={saveConfig.isPending}>
-          <Save className="h-4 w-4 mr-2" /> {saveConfig.isPending ? "Saving…" : "Save Changes"}
+        <Button onClick={handleSave} loading={saveConfig.isPending} className="min-w-20">
+          {common.save}
         </Button>
       </div>
 

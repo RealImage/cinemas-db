@@ -33,6 +33,10 @@ import AddIcountTheatre from "./pages/AddIcountTheatre";
 import EditIcountTheatre from "./pages/EditIcountTheatre";
 import TaskManagement from "./pages/TaskManagement";
 import AgentConfigurations from "./pages/AgentConfigurations";
+import LocationList from "./pages/LocationList";
+import LocationForm from "./pages/LocationForm";
+import LocationLogs from "./pages/LocationLogs";
+import LocationReview from "./pages/LocationReview";
 import ImageManagement from "./pages/ImageManagement";
 import FleetTaskEdit from "./pages/FleetTaskEdit";
 import FleetTaskView from "./pages/FleetTaskView";
@@ -107,6 +111,13 @@ const App = () => (
             <Route path="/fleet-management/task/:id/edit" element={<FleetTaskEdit />} />
             <Route path="/fleet-management/task/:id/view" element={<FleetTaskView />} />
             <Route path="/reports" element={<Reports />} />
+            {/* Location Management */}
+            <Route path="/locations" element={<Navigate to="/locations/countries" replace />} />
+            <Route path="/locations/review" element={<LocationReview />} />
+            <Route path="/locations/:entity" element={<LocationList />} />
+            <Route path="/locations/:entity/new" element={<LocationForm />} />
+            <Route path="/locations/:entity/:id/edit" element={<LocationForm />} />
+            <Route path="/locations/:entity/:id/logs" element={<LocationLogs />} />
             {/* Screen Pulse Routes */}
             <Route path="/screen-pulse" element={<Navigate to="/screen-pulse/dashboard" replace />} />
             <Route path="/screen-pulse/dashboard" element={<PulseDashboard />} />

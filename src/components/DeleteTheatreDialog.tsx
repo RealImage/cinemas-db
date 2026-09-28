@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Theatre } from "@/types";
 import { toast } from "sonner";
+import { common } from "@/i18n/common";
 
 interface DeleteTheatreDialogProps {
   open: boolean;
@@ -91,7 +92,7 @@ export function DeleteTheatreDialog({
         </div>
         
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{common.cancel}</AlertDialogCancel>
           <AlertDialogAction 
             onClick={(e) => {
               e.preventDefault();

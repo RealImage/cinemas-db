@@ -31,6 +31,7 @@ import { Check, AlertTriangle, X, Search } from "lucide-react";
 import type { TaskAppliance } from "@/pages/FleetTaskEdit";
 import type { FleetTheatre } from "@/data/fleetData";
 import { useFleetAppliances, useFleetTheatres } from "@/hooks/api/fleet";
+import { common } from "@/i18n/common";
 
 interface AddApplianceDialogProps {
   open: boolean;
@@ -439,9 +440,7 @@ export const AddApplianceDialog = ({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
-            Cancel
-          </Button>
+          <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>{common.cancel}</Button>
           <Button 
             type="button" 
             onClick={handleConfirm}

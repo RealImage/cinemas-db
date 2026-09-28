@@ -8,6 +8,7 @@ import { Theatre } from "@/types";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDateTime } from "@/lib/dateUtils";
 import { useTheatreLogs } from "@/hooks/api/theatres";
+import { common } from "@/i18n/common";
 
 interface TheatreLogsDialogProps {
   open: boolean;
@@ -143,9 +144,7 @@ export function TheatreLogsDialog({ open, onOpenChange, theatre }: TheatreLogsDi
         </div>
 
         <DialogFooter className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{common.close}</Button>
           <Button 
             variant="default" 
             onClick={() => setShowAllLogs(!showAllLogs)}

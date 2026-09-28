@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
+import { LocationPicker } from "@/components/locations/LocationPicker";
+import type { City } from "@/data/locationsData";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { 
@@ -47,8 +49,7 @@ import {
   Mail,
   Key,
   Upload,
-  Wifi,
-  Save
+  Wifi
 } from "lucide-react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
@@ -69,6 +70,8 @@ import { TimeSlotsEditor } from "./theatres/TimeSlotsEditor";
 import { contentTypeOptions } from "@/data/contentTypes";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Eye, LogOut } from "lucide-react";
+import { FormActions } from "@/components/ui/form-actions";
+import { common } from "@/i18n/common";
 
 // WireTAP Appliances Section Component
 const theatreTypeOptions = [
@@ -1025,7 +1028,39 @@ export const TheatreDialog = ({
                     onChange={handleChange}
                   />
                 </div>
-                
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="theatre-city">City</Label>
+                    <LocationPicker
+                      id="theatre-city"
+                      entity="cities"
+                      value={formData.cityId ? { id: formData.cityId, label: [formData.city, formData.state, formData.country].filter(Boolean).join(", ") } : null}
+                      onChange={(picked, record) => {
+                        const city = record as City | undefined;
+                        setFormData((prev) => ({
+                          ...prev,
+                          cityId: picked?.id ?? null,
+                          ...(city ? { city: city.name, state: city.provinceName, country: city.countryName, timezone: city.timezoneName } : {}),
+                        }));
+                      }}
+                      placeholder={formData.city ? `${formData.city} (not linked to Locations)` : "Search for a city"}
+                      searchPlaceholder="Search for a city"
+                      clearable
+                      aria-label="City"
+                    />
+                    <p className="text-xs text-muted-foreground">Province, country and timezone follow the city</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Province, Country · Timezone</Label>
+                    <Input
+                      value={[[formData.state, formData.country].filter(Boolean).join(", "), formData.timezone].filter(Boolean).join(" · ") || "—"}
+                      disabled
+                      readOnly
+                    />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="latitude">Latitude</Label>
@@ -2229,19 +2264,18 @@ export const TheatreDialog = ({
             </TabsContent>
           </Tabs>
           
-          <div className="mt-6 flex justify-end space-x-2">
+          <FormActions className="mt-6">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {common.cancel}
             </Button>
-            <Button type="submit" disabled={saving}>
-              <Save className="h-4 w-4 mr-2" />
-              {saving ? "Saving…" : isEditing ? "Update Theatre" : "Create Theatre"}
+            <Button type="submit" loading={saving}>
+              {common.save}
             </Button>
-          </div>
+          </FormActions>
         </form>
       </div>
     );

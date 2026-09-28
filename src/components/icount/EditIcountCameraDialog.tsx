@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
 import { cameraMakes, cameraModelsByMake, IcountCamera, CameraOwnership } from "@/data/icountData";
+import { common } from "@/i18n/common";
 
 interface Props {
   open: boolean;
@@ -92,7 +93,7 @@ export const EditIcountCameraDialog = ({ open, onOpenChange, camera, screenName,
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{common.cancel}</Button>
           <Button onClick={handleSave}>Save</Button>
         </DialogFooter>
       </DialogContent>

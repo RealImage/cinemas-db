@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FormActions } from "@/components/ui/form-actions";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { ArrowLeft, Pencil, CalendarIcon, CheckCircle2, Circle } from "lucide-react";
@@ -17,6 +18,7 @@ import type { PulseScreenDevice } from "@/data/pulseData";
 import { useApplianceLookupTheatre, useEnrolApplianceTheatre, type ApplianceLookupDetail } from "@/hooks/api/appliances";
 import { QueryState } from "@/components/ui/query-state";
 import { cn } from "@/lib/utils";
+import { common } from "@/i18n/common";
 
 type Status = "Active" | "Device Paused" | "Inactive";
 
@@ -79,10 +81,10 @@ const AddPulseTheatreForm = ({ theatre }: { theatre: ApplianceLookupDetail }) =>
             <p className="text-sm text-muted-foreground">{theatre.theatreName} ({theatre.theatreId})</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate("/qube-appliances/pulse")}>Cancel</Button>
-          <Button onClick={onSave} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save"}</Button>
-        </div>
+        <FormActions>
+          <Button variant="outline" onClick={() => navigate("/qube-appliances/pulse")}>{common.cancel}</Button>
+          <Button onClick={onSave} loading={save.isPending}>{common.save}</Button>
+        </FormActions>
       </div>
 
       <Card className="p-5 space-y-4">

@@ -172,7 +172,7 @@ export const EditAgentDialog = ({ open, onOpenChange, agent, onSave, saving = fa
 
         <DialogFooter className="border-t border-border px-5 py-3">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{common.cancel}</Button>
-          <Button onClick={handleSave} disabled={saving}>{saving ? common.saving : common.save}</Button>
+          <Button onClick={handleSave} loading={saving}>{common.save}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

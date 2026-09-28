@@ -8,6 +8,7 @@ import {
   credentialScopes,
 } from "@/data/credentialsManagerData";
 import { CredentialValues } from "./CredentialValues";
+import { common } from "@/i18n/common";
 
 interface Props {
   open: boolean;
@@ -42,7 +43,7 @@ export const ViewScopedCredentialDialog = ({ open, onOpenChange, device, credent
         </p>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{common.close}</Button>
           <Button onClick={() => onEdit(credential)}>
             <Pencil className="h-4 w-4 mr-2" /> Edit credentials
           </Button>

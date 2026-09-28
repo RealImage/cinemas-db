@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
 import { WireTAPDevice } from "@/types/wireTAP";
+import { common } from "@/i18n/common";
 
 interface PullOutDeviceDialogProps {
   open: boolean;
@@ -95,12 +96,8 @@ export const PullOutDeviceDialog = ({
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button onClick={handleConfirm} disabled={!reason}>
-            Confirm
-          </Button>
+          <Button variant="outline" onClick={handleCancel}>{common.cancel}</Button>
+          <Button onClick={handleConfirm} disabled={!reason}>{common.confirm}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

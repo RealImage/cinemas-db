@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WireTAPDevice } from "@/types/wireTAP";
+import { common } from "@/i18n/common";
 
 interface DeactivateDeviceDialogProps {
   isOpen: boolean;
@@ -84,9 +85,7 @@ export function DeactivateDeviceDialog({
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={handleCancel}>
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={handleCancel}>{common.cancel}</Button>
           <Button 
             variant="destructive" 
             onClick={handleConfirm}
