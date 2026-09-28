@@ -9,6 +9,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { QueryState } from "@/components/ui/query-state";
 import { usePulseDashboard } from "@/hooks/api/screenPulse";
 import type { PulseDashboardData, PulseMonitoredTheatre } from "@/types/screenPulse";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 type Coverage = "All screens" | "Some screens" | "No screens";
 
@@ -27,7 +28,7 @@ const optionsFor = (key: "city" | "country") => (rows: MonitoredTheatre[]) =>
   Array.from(new Set(rows.map((r) => r[key]))).sort((a, b) => a.localeCompare(b));
 
 const theatreColumns: Column<MonitoredTheatre>[] = [
-  { header: "Theatre", accessor: "name", sortable: true, cell: (t) => <span className="font-medium">{t.name}</span> },
+  { header: "Theatre", accessor: "name", sortable: true, cell: (t) => <TheatreNameWithInfo name={t.name} theatreRef={t.id} /> },
   { header: "City", accessor: "city", sortable: true, filterable: true, filterOptions: optionsFor("city") },
   { header: "Country", accessor: "country", sortable: true, filterable: true, filterOptions: optionsFor("country") },
   {

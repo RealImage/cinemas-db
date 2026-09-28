@@ -72,7 +72,7 @@ const metric = (col: string, unit: string) =>
 
 screenPulse.get("/environment", async (c) =>
   c.json(await query<EnvironmentScreenRecord>(`
-    SELECT s.id, s.name AS "screenName", t.name AS "theatreName", coalesce(ch.name, '') AS "chainName", ${LOCATION},
+    SELECT s.id, s.name AS "screenName", t.id AS "theatreId", t.name AS "theatreName", coalesce(ch.name, '') AS "chainName", ${LOCATION},
            e.score,
            ${metric("on_temperature", "°C")} AS "onTemperature",
            ${metric("on_humidity", "%")} AS "onHumidity",
@@ -155,7 +155,7 @@ screenPulse.get("/environment/:screenId/series", async (c) => {
 
 screenPulse.get("/projection", async (c) =>
   c.json(await query<ProjectionScreenRecord>(`
-    SELECT s.id, s.name AS "screenName", t.name AS "theatreName", coalesce(ch.name, '') AS "chainName", ${LOCATION},
+    SELECT s.id, s.name AS "screenName", t.id AS "theatreId", t.name AS "theatreName", coalesce(ch.name, '') AS "chainName", ${LOCATION},
            q.score,
            CASE WHEN q.score >= 71 THEN 'good' WHEN q.score >= 41 THEN 'average' ELSE 'poor' END AS "scoreCategory",
            json_build_object('value', coalesce(q.projection_quality, ''),
@@ -176,7 +176,7 @@ screenPulse.get("/projection", async (c) =>
 
 // Pulse devices are identified by appliance_id ("PULSE-1100"); Lionis by serial_number.
 const SCREEN_SELECT = `
-  SELECT s.id, t.name AS "theatreName", coalesce(ch.name, '') AS "chainName", s.name AS "screenName", ${LOCATION},
+  SELECT s.id, t.id AS "theatreId", t.name AS "theatreName", coalesce(ch.name, '') AS "chainName", s.name AS "screenName", ${LOCATION},
          coalesce(p.status <> 'Inactive', false) AS "pulseInstalled",
          coalesce(l.status <> 'Inactive', false) AS "lionisInstalled",
          CASE WHEN p.status <> 'Inactive' THEN p.appliance_id END AS "pulseSerialNumber",

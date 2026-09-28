@@ -16,6 +16,7 @@ import { ScreenDetailDialog } from "@/components/environment-manager/ScreenDetai
 import { scoreRangeBins, type EnvironmentMetric, type RatingStatus, type EnvironmentScreenRecord } from "@/data/environmentManagerData";
 import { QueryState } from "@/components/ui/query-state";
 import { useEnvironmentScreens } from "@/hooks/api/screenPulse";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 const defaultFilters: EnvironmentFilters = {
   chain: "all",
@@ -262,7 +263,7 @@ const EnvironmentManagerContent = ({ data }: { data: EnvironmentScreenRecord[] }
                   <TableRow key={screen.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedScreen(screen)}>
                     <TableCell className="font-bold text-center">{screen.score}</TableCell>
                     <TableCell className="font-medium">{screen.screenName}</TableCell>
-                    <TableCell>{screen.theatreName}</TableCell>
+                    <TableCell><TheatreNameWithInfo name={screen.theatreName} theatreRef={screen.theatreId} nameClassName="" /></TableCell>
                     <TableCell>{screen.chainName}</TableCell>
                     <TableCell className="text-muted-foreground">{screen.city}, {screen.state}, {screen.country}</TableCell>
                     <TableCell><MetricCell metric={screen.onTemperature} /></TableCell>

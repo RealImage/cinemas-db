@@ -15,10 +15,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { formatDate, formatDateTime, formatTime } from "@/lib/dateUtils";
 import { FilterButton, FilterDrawer, FilterGroup, useFilterDraft } from "@/components/ui/filter-drawer";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { QueryState } from "@/components/ui/query-state";
 import { useFleetImages, useFleetStatus, useImageVersions } from "@/hooks/api/fleet";
 import type { FleetNode } from "@/data/fleetData";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
+import { formatTheatreAddress } from "@/data/theatreSummary";
 
 const EMPTY_NODES: FleetNode[] = [];
 
@@ -283,30 +284,19 @@ const FleetStatus = () => {
     { accessor: "nodeId", header: "Node ID", sortable: true },
     { accessor: "theatreChain", header: "Theatre Chain", sortable: true },
     { accessor: "theatreName", header: "Theatre Name", sortable: true, cell: (row) => (
-      <HoverCard>
-        <HoverCardTrigger asChild>
-          <div className="cursor-pointer">
-            <div className="font-medium">{row.theatreName}</div>
-            <div className="text-xs text-muted-foreground">{row.city}, {row.state}, {row.country}</div>
-          </div>
-        </HoverCardTrigger>
-        <HoverCardContent className="w-80">
-          <div className="space-y-2">
-            <div>
-              <span className="text-sm font-medium text-muted-foreground">Alternate Names: </span>
-              <span className="text-sm">{row.alternateNames.join(", ")}</span>
-            </div>
-            <div>
-              <span className="text-sm font-medium text-muted-foreground">UUID: </span>
-              <span className="text-sm font-mono">{row.uuid}</span>
-            </div>
-            <div>
-              <span className="text-sm font-medium text-muted-foreground">Address: </span>
-              <span className="text-sm">{row.address}</span>
-            </div>
-          </div>
-        </HoverCardContent>
-      </HoverCard>
+      <div>
+        <TheatreNameWithInfo
+          name={row.theatreName}
+          // The row carries the theatre's details, also for appliances whose theatre isn't linked in CinemaDB
+          details={{
+            name: row.theatreName,
+            alternateNames: row.alternateNames.filter((n) => n && n !== row.theatreName),
+            uuid: row.uuid || null,
+            address: formatTheatreAddress({ address: row.address, city: row.city, state: row.state, country: row.country }),
+          }}
+        />
+        <div className="text-xs text-muted-foreground">{row.city}, {row.state}, {row.country}</div>
+      </div>
     )},
     { accessor: "version", header: "Version", sortable: true, cell: (row) => (
       <div className="flex items-center gap-2">

@@ -5,6 +5,8 @@ export type ScoreCategory = "good" | "average" | "poor";
 export interface ProjectionScreenRecord {
   id: string;
   screenName: string;
+  /** CinemaDB theatre id (set by the API; the mock rows have none) */
+  theatreId?: string;
   theatreName: string;
   chainName: string;
   city: string;

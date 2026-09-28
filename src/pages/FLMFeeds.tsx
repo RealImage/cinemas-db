@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, MoreHorizontal, Copy, X } from "lucide-react";
+import { Search, MoreHorizontal, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
@@ -33,14 +33,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useFlmFeeds, useIgnoreFlmFeed } from "@/hooks/api/flm";
 import { QueryState } from "@/components/ui/query-state";
 import { formatDate, formatTime } from "@/lib/dateUtils";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 const SOURCES = ["MACCS", "DCIP", "Qube Radar", "Cinergy", "Sony", "KDMx"];
 
@@ -63,12 +59,6 @@ const FLMFeeds = () => {
   const [mapFeed, setMapFeed] = useState<FlmFeed | null>(null);
   const feedsQuery = useFlmFeeds();
   const ignoreFeed = useIgnoreFlmFeed();
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast({ title: "Copied", description: `${label} copied to clipboard.` });
-    });
-  };
 
   const handleIgnore = async (feed: FlmFeed) => {
     try {
@@ -210,73 +200,16 @@ const FLMFeeds = () => {
             {pagedRows.map((f) => (
               <TableRow key={f.id} className="cursor-pointer" onClick={() => navigate(`/theatres/flm-feeds/${f.id}`)}>
                 <TableCell>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="cursor-default">
-                        <div className="font-medium">{f.theatreName}</div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs space-y-2 p-3">
-                      <div className="space-y-1.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Theatre Name</p>
-                            <p className="text-sm font-medium">{f.theatreName}</p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 shrink-0"
-                            onClick={() => copyToClipboard(f.theatreName, "Theatre Name")}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Theatre Display Name</p>
-                            <p className="text-sm">{f.theatreDisplayName}</p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 shrink-0"
-                            onClick={() => copyToClipboard(f.theatreDisplayName, "Theatre Display Name")}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Theatre UUID</p>
-                            <p className="font-mono text-xs break-all">{f.theatreUuid}</p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 shrink-0"
-                            onClick={() => copyToClipboard(f.theatreUuid, "Theatre UUID")}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Theatre Address</p>
-                            <p className="text-sm">{f.address}</p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 shrink-0"
-                            onClick={() => copyToClipboard(f.address, "Theatre Address")}
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
+                  {/* The feed's own details: the theatre may not be in CinemaDB yet */}
+                  <TheatreNameWithInfo
+                    name={f.theatreName}
+                    details={{
+                      name: f.theatreName,
+                      alternateNames: f.theatreDisplayName && f.theatreDisplayName !== f.theatreName ? [f.theatreDisplayName] : [],
+                      uuid: f.theatreUuid || null,
+                      address: f.address || null,
+                    }}
+                  />
                 </TableCell>
                 <TableCell className="text-sm">{f.chain}</TableCell>
                 <TableCell>

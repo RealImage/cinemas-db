@@ -9,7 +9,6 @@ import { FilterButton } from "@/components/ui/filter-drawer";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/ui/data-table/pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { QubeAcsTheatre } from "@/data/qubeAcsData";
 import { useApplianceTheatres } from "@/hooks/api/appliances";
@@ -18,6 +17,7 @@ import { QubeAcsFilterPanel, QubeAcsFilters, emptyQubeAcsFilters } from "@/compo
 import { AddTheatreLookupDialog } from "@/components/qube-acs/AddTheatreLookupDialog";
 import { QubeAcsDetailSheet } from "@/components/qube-acs/QubeAcsDetailSheet";
 import SystemConstantsDialog from "@/components/qube-acs/SystemConstantsDialog";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 const QubeACS = () => {
   const navigate = useNavigate();
@@ -118,11 +118,9 @@ const QubeACS = () => {
                   ) : paginated.map((t) => (
                     <TableRow key={t.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => openDetails(t)}>
                       <TableCell>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="inline-flex items-center gap-2">
+                        <div className="inline-flex items-center gap-2">
                               <div>
-                                <div className="font-medium">{t.theatreName}</div>
+                                <TheatreNameWithInfo name={t.theatreName} theatreRef={t.id} />
                                 <div className="text-xs text-muted-foreground">{t.theatreId}</div>
                               </div>
                               <Button
@@ -138,12 +136,6 @@ const QubeACS = () => {
                                   : <Copy className="h-3.5 w-3.5" />}
                               </Button>
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent className="text-xs space-y-1">
-                            <div><span className="font-semibold">Theatre Name:</span> {t.theatreName}</div>
-                            <div><span className="font-semibold">Also Known As:</span> {t.alsoKnownAs || "—"}</div>
-                          </TooltipContent>
-                        </Tooltip>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{t.city}, {t.state}, {t.country}</TableCell>
                       <TableCell>{t.chainName}</TableCell>

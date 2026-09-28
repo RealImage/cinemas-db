@@ -5,6 +5,7 @@ import { CURRENT_USER, httpError, notFound } from "../http";
 import { SCREEN_JSON, SCREEN_ORDER, saveScreen } from "./screens";
 import type { Company, DashboardStats, Screen, Theatre, TheatreMapping } from "../../src/types";
 import type { WireTAPDevice } from "../../src/types/wireTAP";
+import { formatTheatreAddress, type TheatreSummary } from "../../src/data/theatreSummary";
 
 export const theatres = new Hono();
 
@@ -345,6 +346,29 @@ theatres.get("/wiretap-devices/search", async (c) => {
 // ---------------------------------------------------------------------------
 // Routes: one theatre
 // ---------------------------------------------------------------------------
+
+/** Identity for the theatre info hover card; `ref` is a theatre's id, code (e.g. T30000) or UUID. */
+theatres.get("/:ref/summary", async (c) => {
+  const [row] = await query<{
+    id: string; name: string; display_name: string | null; alternate_names: string[]; uuid: string | null;
+    address: string | null; city: string | null; state: string | null; postal_code: string | null; country: string | null;
+  }>(
+    `SELECT id, name, display_name, alternate_names, uuid, address, city, state, postal_code, country
+     FROM theatres WHERE id = $1 OR code = $1 OR uuid = $1
+     ORDER BY (id = $1) DESC LIMIT 1`,
+    [c.req.param("ref")],
+  );
+  if (!row) throw notFound("Theatre");
+  const summary: TheatreSummary = {
+    id: row.id,
+    name: row.name,
+    alternateNames: [...new Set([row.display_name, ...(row.alternate_names ?? [])].map((n) => n?.trim()).filter(
+      (n): n is string => !!n && n !== row.name))],
+    uuid: row.uuid,
+    address: formatTheatreAddress({ address: row.address, city: row.city, state: row.state, postalCode: row.postal_code, country: row.country }),
+  };
+  return c.json(summary);
+});
 
 theatres.get("/:id", async (c) => {
   const theatre = await loadTheatre(c.req.param("id"));
