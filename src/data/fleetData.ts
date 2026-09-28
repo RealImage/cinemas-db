@@ -73,6 +73,9 @@ export interface FleetNode {
   alternateNames: string[];
   uuid: string;
   address: string;
+  /** From the linked theatre; null when the appliance's theatre isn't in CinemaDB. */
+  displayName: string | null;
+  postalCode: string | null;
   clusterName: string;
   applianceSerialNumber: string;
   hardwareSerialNumber: string;

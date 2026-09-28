@@ -188,6 +188,7 @@ fleet.get("/status", async (c) => {
             ni.last_heartbeat AS "lastHeartbeat", ni.last_update_task AS "lastUpdateTask",
             CASE WHEN cardinality(t.alternate_names) > 0 THEN t.alternate_names ELSE n.alternate_names END AS "alternateNames",
             COALESCE(t.uuid, n.theatre_uuid, '') AS uuid, COALESCE(t.address, n.address, '') AS address,
+            t.display_name AS "displayName", t.postal_code AS "postalCode",
             n.cluster_name AS "clusterName", n.appliance_serial_number AS "applianceSerialNumber",
             n.hardware_serial_number AS "hardwareSerialNumber"
      FROM fleet_node_images ni

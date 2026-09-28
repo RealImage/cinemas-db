@@ -21,9 +21,16 @@ export function formatTheatreAddress(parts: {
 }) {
   const street = parts.address?.trim() ?? "";
   if (street.includes(",")) return street;
-  const has = (v: string) => street.toLowerCase().includes(v.toLowerCase());
+  // Whole words only, so "CA" isn't found in "123 Academy St"
+  const has = (v: string) =>
+    new RegExp(`(?<![\\p{L}\\p{N}])${v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}])`, "iu").test(street);
   const region = [parts.state, parts.postalCode].map((v) => v?.trim()).filter((v): v is string => !!v && !has(v)).join(" ");
   const rest = [parts.city?.trim(), region, parts.country?.trim()].filter((v): v is string => !!v && !has(v));
   const line = [street, ...rest].filter(Boolean).join(", ");
   return line || null;
+}
+
+/** A theatre's display name and alternate names, trimmed and without duplicates or its own name. */
+export function theatreAlternateNames(name: string, displayName: string | null | undefined, alternateNames: (string | null)[] | null | undefined) {
+  return [...new Set([displayName, ...(alternateNames ?? [])].map((n) => n?.trim()).filter((n): n is string => !!n && n !== name))];
 }

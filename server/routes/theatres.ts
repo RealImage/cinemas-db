@@ -5,7 +5,7 @@ import { CURRENT_USER, httpError, notFound } from "../http";
 import { SCREEN_JSON, SCREEN_ORDER, saveScreen } from "./screens";
 import type { Company, DashboardStats, Screen, Theatre, TheatreMapping } from "../../src/types";
 import type { WireTAPDevice } from "../../src/types/wireTAP";
-import { formatTheatreAddress, type TheatreSummary } from "../../src/data/theatreSummary";
+import { formatTheatreAddress, theatreAlternateNames, type TheatreSummary } from "../../src/data/theatreSummary";
 
 export const theatres = new Hono();
 
@@ -362,8 +362,7 @@ theatres.get("/:ref/summary", async (c) => {
   const summary: TheatreSummary = {
     id: row.id,
     name: row.name,
-    alternateNames: [...new Set([row.display_name, ...(row.alternate_names ?? [])].map((n) => n?.trim()).filter(
-      (n): n is string => !!n && n !== row.name))],
+    alternateNames: theatreAlternateNames(row.name, row.display_name, row.alternate_names),
     uuid: row.uuid,
     address: formatTheatreAddress({ address: row.address, city: row.city, state: row.state, postalCode: row.postal_code, country: row.country }),
   };

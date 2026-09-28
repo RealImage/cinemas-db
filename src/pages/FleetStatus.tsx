@@ -19,7 +19,7 @@ import { QueryState } from "@/components/ui/query-state";
 import { useFleetImages, useFleetStatus, useImageVersions } from "@/hooks/api/fleet";
 import type { FleetNode } from "@/data/fleetData";
 import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
-import { formatTheatreAddress } from "@/data/theatreSummary";
+import { formatTheatreAddress, theatreAlternateNames } from "@/data/theatreSummary";
 
 const EMPTY_NODES: FleetNode[] = [];
 
@@ -290,9 +290,11 @@ const FleetStatus = () => {
           // The row carries the theatre's details, also for appliances whose theatre isn't linked in CinemaDB
           details={{
             name: row.theatreName,
-            alternateNames: row.alternateNames.filter((n) => n && n !== row.theatreName),
+            alternateNames: theatreAlternateNames(row.theatreName, row.displayName, row.alternateNames),
             uuid: row.uuid || null,
-            address: formatTheatreAddress({ address: row.address, city: row.city, state: row.state, country: row.country }),
+            address: formatTheatreAddress({
+              address: row.address, city: row.city, state: row.state, postalCode: row.postalCode, country: row.country,
+            }),
           }}
         />
         <div className="text-xs text-muted-foreground">{row.city}, {row.state}, {row.country}</div>
