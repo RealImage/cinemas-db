@@ -257,7 +257,8 @@ async function activeParent<T extends pg.QueryResultRow>(
   db: Db, table: string, id: unknown, label: string, currentId: string | null, columns: string,
 ) {
   const parentId = required(id, label);
-  const row = await one<T & { is_deleted: boolean }>(db, `SELECT ${columns}, is_deleted FROM ${table} WHERE id = $1`, [parentId]);
+  // FOR SHARE: a concurrent deactivation of the parent (FOR UPDATE, then a child count) waits for this write
+  const row = await one<T & { is_deleted: boolean }>(db, `SELECT ${columns}, is_deleted FROM ${table} WHERE id = $1 FOR SHARE`, [parentId]);
   if (!row) throw httpError(400, `${label} ${parentId} does not exist`);
   if (row.is_deleted && parentId !== currentId) throw httpError(400, `${label} is deactivated`);
   return row;
@@ -341,8 +342,12 @@ export async function parseInput(entity: LocationEntity, body: Body, db: Db, exi
         columns: { name: required(body.name, "Name") },
         // A city belongs to at most one metro area: listing it here moves it from any other
         links: async (db, id) => {
-          await db.query("UPDATE cities SET metro_area_id = NULL WHERE metro_area_id = $1 AND NOT (id = ANY($2))", [id, cityIds]);
-          await db.query("UPDATE cities SET metro_area_id = $1 WHERE id = ANY($2)", [id, cityIds]);
+          const { rows } = await db.query<{ id: string; metro_area_id: string | null }>(
+            `SELECT id, metro_area_id FROM cities
+             WHERE (metro_area_id = $1 AND NOT (id = ANY($2))) OR (id = ANY($2) AND metro_area_id IS DISTINCT FROM $1)
+             ORDER BY id FOR UPDATE`, [id, cityIds]);
+          await updateCitiesAudited(db, rows.filter((r) => r.metro_area_id === id).map((r) => r.id), { metro_area_id: null });
+          await updateCitiesAudited(db, rows.filter((r) => r.metro_area_id !== id).map((r) => r.id), { metro_area_id: id });
         },
       };
     }
@@ -405,6 +410,17 @@ export async function updateRecord(db: Db, entity: LocationEntity, id: string, c
   await links?.(db, id);
 }
 
+/** Updates cities one by one so each gets its own audit metadata and log entry (e.g. a metro area or timezone change). */
+export async function updateCitiesAudited(
+  db: Db, cityIds: string[], columns: Record<string, unknown>, source?: { source: ReferenceSource; ref: string },
+) {
+  for (const cityId of cityIds) {
+    const before = await loadRecord("cities", cityId, db);
+    await updateRecord(db, "cities", cityId, columns);
+    await writeLog(db, "cities", cityId, "UPDATE", before, await loadRecord("cities", cityId, db), source);
+  }
+}
+
 /** Locks and returns the stored row, or 404s. */
 export async function lockRow(db: Db, entity: LocationEntity, id: string) {
   const row = await one(db, `SELECT * FROM ${ENTITY_SQL[entity].table} WHERE id = $1 FOR UPDATE`, [id]);
@@ -454,7 +470,10 @@ export async function setDeleted(db: Db, entity: LocationEntity, id: string, del
   }
   const before = await loadRecord(entity, id, db);
   // A deactivated metro area lets go of its cities; its snapshot keeps the list
-  if (deleted && entity === "metro_areas") await db.query("UPDATE cities SET metro_area_id = NULL WHERE metro_area_id = $1", [id]);
+  if (deleted && entity === "metro_areas") {
+    const { rows } = await db.query<{ id: string }>("SELECT id FROM cities WHERE metro_area_id = $1 ORDER BY id FOR UPDATE", [id]);
+    await updateCitiesAudited(db, rows.map((r) => r.id), { metro_area_id: null }, source);
+  }
   await updateRecord(db, entity, id, { is_deleted: deleted });
   const after = await loadRecord(entity, id, db);
   await writeLog(db, entity, id, deleted ? "DEACTIVATE" : "RESTORE", before, after, source);

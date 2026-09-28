@@ -56,6 +56,7 @@ Reference sync compares CinemaDB with GeoNames and IANA and lists every differen
 | `npm run db:migrate` | Apply pending migrations |
 | `npm run db:seed` | Load sample data |
 | `npm run db:seed:one -- <name>` | Run one seeder (e.g. `credentials`) |
+| `npm run db:seed:one -- locations --force` | Re-seed locations even after admins have edited or reviewed them (discards those changes and their logs) |
 | `npm run db:reset` | Drop everything, re-migrate and re-seed |
 | `npm run db:psql` | Open `psql` in the container |
 

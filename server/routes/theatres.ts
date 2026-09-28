@@ -144,7 +144,8 @@ async function resolveCity(client: pg.PoolClient, theatreId: string, cityId: unk
   const { rows } = await client.query<{ id: string; name: string; province: string; country: string; timezone: string; is_deleted: boolean }>(
     `SELECT ci.id, ci.name, p.name AS province, c.name AS country, tz.name AS timezone, ci.is_deleted
      FROM cities ci JOIN provinces p ON p.id = ci.province_id JOIN countries c ON c.id = p.country_id
-     JOIN timezones tz ON tz.id = ci.timezone_id WHERE ci.id = $1`, [cityId]);
+     JOIN timezones tz ON tz.id = ci.timezone_id WHERE ci.id = $1
+     FOR SHARE OF ci`, [cityId]); // a concurrent city deactivation waits for this link
   const city = rows[0];
   if (!city) throw httpError(400, `City ${cityId} does not exist`);
   if (city.is_deleted) {

@@ -66,6 +66,7 @@ export const locationsSeeder: ExtraSeeder = {
   // Reset in run(): TRUNCATE … CASCADE on cities would also empty theatres, which reference them
   tables: [],
   async run(client) {
+    await refuseToDiscardEdits(client);
     await client.query("UPDATE theatres SET city_id = NULL WHERE city_id IS NOT NULL");
     await client.query(`DELETE FROM location_review_items; DELETE FROM location_sync_runs; DELETE FROM location_logs;
       DELETE FROM timezone_popular_cities; DELETE FROM country_timezones; DELETE FROM cities; DELETE FROM metro_areas;
@@ -114,6 +115,20 @@ export const locationsSeeder: ExtraSeeder = {
       `${metroIds.size} metro areas, ${tzIds.size} timezones; ${linked} theatres linked to a city`);
   },
 };
+
+/**
+ * Re-seeding replaces every location record, its audit log and the review queue.
+ * Once admins have changed anything (a log entry exists), that needs an explicit --force.
+ */
+async function refuseToDiscardEdits(client: pg.Client) {
+  if (process.argv.includes("--force")) return;
+  const { rows } = await client.query<{ edited: boolean }>(
+    "SELECT EXISTS (SELECT 1 FROM location_logs) OR EXISTS (SELECT 1 FROM location_review_items WHERE status <> 'open') AS edited");
+  if (rows[0].edited) {
+    throw new Error("Locations have been edited or reviewed; re-seeding would discard those changes and their logs. " +
+      "Re-run with --force to replace them (e.g. npm run db:seed:one -- locations --force).");
+  }
+}
 
 async function seedQuirks(
   client: pg.Client,

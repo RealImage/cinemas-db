@@ -3,10 +3,11 @@
 // with the reference source and its ID.
 import { query } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
-import { loadRecord, lockRow, setDeleted, updateRecord, writeLog, type Db } from "./records";
+import { loadRecord, lockRow, setDeleted, updateCitiesAudited, updateRecord, writeLog, type Db } from "./records";
 import { loadSettings, trackedCountryIds } from "./sync";
 import {
   reviewEntities,
+  reparentCode,
   reviewFlags,
   suggestCityCode,
   type LocationRef,
@@ -66,7 +67,15 @@ async function fixPlan(db: Db, item: ItemRow): Promise<FixPlan | null> {
       if (fields.has("ISO Code")) return null; // the right ISO code isn't in GeoNames
       const countryId = await idBy(db, "SELECT id FROM countries WHERE iso3166_2 = $1 AND NOT is_deleted", ref.country);
       if (!countryId) return null;
-      return { description: `Move to country ${ref.country}`, apply: (db) => updateRecord(db, "provinces", id, { country_id: countryId }) };
+      // The ISO code moves with the country; one without the old country's prefix needs the edit form
+      const current = (await db.query<{ iso_code: string; iso2: string }>(
+        "SELECT p.iso_code, c.iso3166_2 AS iso2 FROM provinces p JOIN countries c ON c.id = p.country_id WHERE p.id = $1", [id])).rows[0];
+      const isoCode = current && reparentCode(current.iso_code, current.iso2, String(ref.country));
+      if (!isoCode) return null;
+      return {
+        description: `Move to country ${ref.country} and set ISO code to ${isoCode}`,
+        apply: (db) => updateRecord(db, "provinces", id, { country_id: countryId, iso_code: isoCode }),
+      };
     }
     case "cities": {
       const columns: Record<string, unknown> = {};
@@ -106,8 +115,8 @@ async function fixPlan(db: Db, item: ItemRow): Promise<FixPlan | null> {
         return {
           description: `Move its cities to ${target} and set this alias inactive`,
           apply: async (db) => {
-            await db.query("UPDATE cities SET timezone_id = $2, updated_at = now(), updated_by = $3 WHERE timezone_id = $1",
-              [id, targetId, CURRENT_USER]);
+            const { rows } = await db.query<{ id: string }>("SELECT id FROM cities WHERE timezone_id = $1 ORDER BY id FOR UPDATE", [id]);
+            await updateCitiesAudited(db, rows.map((r) => r.id), { timezone_id: targetId }, { source: "iana", ref: target });
             await updateRecord(db, "timezones", id, { is_active: false });
           },
         };
