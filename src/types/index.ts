@@ -172,6 +172,8 @@ export type Theatre = {
   city: string;
   state: string;
   country: string;
+  /** Locations city; city, state, country and timezone follow it. */
+  cityId?: string | null;
   postalCode: string;
   phoneNumber: string;
   email: string;

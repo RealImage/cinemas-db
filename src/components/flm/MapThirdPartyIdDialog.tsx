@@ -105,8 +105,8 @@ export const MapThirdPartyIdDialog = ({ feed, onClose }: MapThirdPartyIdDialogPr
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>{common.cancel}</Button>
-            <Button type="submit" disabled={!domain || !identifier.trim() || mapId.isPending}>
-              {mapId.isPending ? common.saving : common.save}
+            <Button type="submit" disabled={!domain || !identifier.trim()} loading={mapId.isPending}>
+              {common.save}
             </Button>
           </DialogFooter>
         </form>

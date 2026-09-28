@@ -3,6 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { ACTION_BUTTONS } from "@/components/ui/button"
 
 const Dialog = DialogPrimitive.Root
 
@@ -72,6 +73,7 @@ const DialogFooter = ({
   <div
     className={cn(
       "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      ACTION_BUTTONS,
       className
     )}
     {...props}

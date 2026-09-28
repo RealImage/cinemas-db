@@ -5,6 +5,7 @@ import { Theatre } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Film, MapPin, Building, Tag, User } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
+import { common } from "@/i18n/common";
 
 interface ViewTheatreDialogProps {
   open: boolean;
@@ -131,9 +132,7 @@ export const ViewTheatreDialog = ({
         </div>
         
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} variant="outline">
-            Close
-          </Button>
+          <Button onClick={() => onOpenChange(false)} variant="outline">{common.close}</Button>
           <Button onClick={handleEdit}>
             Edit Theatre
           </Button>

@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { common } from "@/i18n/common";
 
 interface FetchNewDevicesDialogProps {
   isOpen: boolean;
@@ -141,9 +142,7 @@ export function FetchNewDevicesDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={handleCancel}>{common.cancel}</Button>
           <Button 
             onClick={handleAddDevices}
             disabled={selectedDeviceIds.size === 0}

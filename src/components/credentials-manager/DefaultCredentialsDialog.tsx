@@ -11,6 +11,7 @@ import {
 } from "@/data/credentialsManagerData";
 import { QueryState } from "@/components/ui/query-state";
 import { CredentialValues } from "./CredentialValues";
+import { common } from "@/i18n/common";
 
 interface Props {
   open: boolean;
@@ -69,7 +70,7 @@ export const DefaultCredentialsDialog = ({ open, onOpenChange, device, credentia
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{common.close}</Button>
           <Button onClick={() => onManage(device)}>
             <Settings2 className="h-4 w-4 mr-2" /> Manage credentials
           </Button>

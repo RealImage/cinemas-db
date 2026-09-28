@@ -75,6 +75,23 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
 
     if (path === "/reports") return "Reports";
 
+    // Location Management
+    if (path === "/locations/review") return "Reference Sync Review";
+    const locationMatch = /^\/locations\/([a-z-]+)(?:\/(new|[^/]+\/(edit|logs)))?$/.exec(path);
+    if (locationMatch) {
+      const labels: Record<string, [string, string]> = {
+        countries: ["Countries", "Country"], provinces: ["Provinces", "Province"], cities: ["Cities", "City"],
+        "metro-areas": ["Metro Areas", "Metro Area"], timezones: ["Timezones", "Timezone"],
+      };
+      const [plural, singular] = labels[locationMatch[1]] ?? [];
+      if (plural) {
+        if (locationMatch[2] === "new") return `New ${singular}`;
+        if (locationMatch[3] === "edit") return `Edit ${singular}`;
+        if (locationMatch[3] === "logs") return `${singular} Logs`;
+        return plural;
+      }
+    }
+
     return "";
   };
   

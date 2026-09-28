@@ -113,8 +113,8 @@ export const AddTheatreDialog = ({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {common.cancel}
             </Button>
-            <Button type="submit" disabled={createTheatre.isPending}>
-              {createTheatre.isPending ? common.saving : common.save}
+            <Button type="submit" loading={createTheatre.isPending}>
+              {common.save}
             </Button>
           </DialogFooter>
         </form>

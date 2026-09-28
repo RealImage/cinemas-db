@@ -126,7 +126,7 @@ export function AddVersionDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>{common.cancel}</Button>
-          <Button onClick={handleSubmit} disabled={saving}>{saving ? common.saving : common.save}</Button>
+          <Button onClick={handleSubmit} loading={saving}>{common.save}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -216,7 +216,7 @@ export const EditScopedCredentialDialog = ({ open, onOpenChange, device, scope, 
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{common.cancel}</Button>
-          <Button onClick={handleSave} disabled={!canSave}>{saving ? common.saving : common.save}</Button>
+          <Button onClick={handleSave} disabled={!canSave} loading={saving}>{common.save}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

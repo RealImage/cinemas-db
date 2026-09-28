@@ -9,10 +9,10 @@ import { AddApplianceDialog } from "@/components/fleet/AddApplianceDialog";
 import { EditTaskDialog, TaskData } from "@/components/fleet/EditTaskDialog";
 import { TargetAppliancesTable } from "@/components/fleet/TargetAppliancesTable";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 import { QueryState } from "@/components/ui/query-state";
 import { useFleetTask, useSaveFleetTask } from "@/hooks/api/fleet";
 import type { FleetTaskDetail, TaskAppliance } from "@/data/fleetData";
+import { common } from "@/i18n/common";
 
 export type { TaskAppliance } from "@/data/fleetData";
 
@@ -156,9 +156,8 @@ const FleetTaskEdit = () => {
           </Button>
           <p className="text-muted-foreground">Configure task details and target appliances</p>
         </div>
-        <Button onClick={handleSaveTask} disabled={saveTask.isPending}>
-          {saveTask.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          Save Task
+        <Button onClick={handleSaveTask} loading={saveTask.isPending} className="min-w-20">
+          {common.save}
         </Button>
       </div>
 

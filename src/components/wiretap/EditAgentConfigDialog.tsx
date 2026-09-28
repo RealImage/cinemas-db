@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { common } from "@/i18n/common";
 
 interface Agent {
   id: number;
@@ -293,10 +294,8 @@ const EditAgentConfigDialog = ({
         </ScrollArea>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>Save Configuration</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{common.cancel}</Button>
+          <Button onClick={handleSave}>{common.save}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

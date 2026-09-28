@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Save, HardDrive, Wifi, Database, Building2, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, HardDrive, Wifi, Database, Building2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import DeviceLogsTable from "@/components/wiretap/DeviceLogsTable";
 import { WireTAPDevice } from "@/types/wireTAP";
 import { ApiError } from "@/lib/api";
 import { fromWireTAPDetails, toWireTAPPayload, useCreateWireTAPDevice, useUpdateWireTAPDevice, useWireTAPDevice } from "@/hooks/api/wiretap";
+import { common } from "@/i18n/common";
 const EditWireTAPDevice = () => {
   const {
     id
@@ -321,8 +322,8 @@ const EditWireTAPDevice = () => {
               <div className="flex gap-2">
                 {!isLastStep ? <Button onClick={handleNext}>
                     Next <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button> : <Button onClick={handleSubmit} disabled={saving}>
-                    <Save className="h-4 w-4 mr-2" /> {saving ? "Saving…" : isNewDevice ? "Save Device" : "Update Device"}
+                  </Button> : <Button onClick={handleSubmit} loading={saving} className="min-w-20">
+                    {common.save}
                   </Button>}
               </div>
             </CardFooter>}

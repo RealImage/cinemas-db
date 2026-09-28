@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { common } from "@/i18n/common";
 
 interface DeviceLogsDialogProps {
   isOpen: boolean;
@@ -69,9 +70,7 @@ export function DeviceLogsDialog({ isOpen, onOpenChange, device }: DeviceLogsDia
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
+          <Button onClick={() => onOpenChange(false)}>{common.close}</Button>
           <Button variant="outline" onClick={() => toast.success("Log report downloaded")}>
             <Download className="h-4 w-4 mr-2" /> Download Logs
           </Button>

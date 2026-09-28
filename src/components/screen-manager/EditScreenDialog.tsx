@@ -179,8 +179,8 @@ export const EditScreenDialog = ({ open, onOpenChange, screen, onSaved }: EditSc
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{common.cancel}</Button>
-          <Button onClick={handleSave} disabled={updateScreen.isPending}>
-            {updateScreen.isPending ? common.saving : common.save}
+          <Button onClick={handleSave} loading={updateScreen.isPending}>
+            {common.save}
           </Button>
         </DialogFooter>
       </DialogContent>

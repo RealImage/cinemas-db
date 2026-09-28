@@ -15,6 +15,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { common } from "@/i18n/common";
 
 type FieldKey = "sourceTheatreId" | "theatreUuid" | "name" | "displayName" | "address" | "city" | "state" | "country" | "postalCode" | "chain" | "timezone" | "contactName" | "phone" | "email";
 type ComparisonField = { key: FieldKey; label: string; incoming: string; current: string };
@@ -334,7 +335,7 @@ const FlmFeedDetailsView = ({ feed, theatres }: { feed: FlmFeed; theatres: Theat
         </div>
       )}
 
-      {isActionable && (selectedTheatre || createMode) && <div className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-end gap-3 border-t border-border bg-card px-6 py-4 shadow-xl md:left-64"><Button variant="outline" onClick={() => navigate("/theatres/flm-feeds")}>Cancel</Button><Button disabled={!createMode && selectedChanges.length === 0} onClick={() => setConfirmOpen(true)}>{createMode ? "Create New Theatre" : feed.isNewTheatre ? "Map & Update Theatre" : "Update Theatre"}</Button></div>}
+      {isActionable && (selectedTheatre || createMode) && <div className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-end gap-3 border-t border-border bg-card px-6 py-4 shadow-xl md:left-64"><Button variant="outline" onClick={() => navigate("/theatres/flm-feeds")}>{common.cancel}</Button><Button disabled={!createMode && selectedChanges.length === 0} onClick={() => setConfirmOpen(true)}>{createMode ? "Create New Theatre" : feed.isNewTheatre ? "Map & Update Theatre" : "Update Theatre"}</Button></div>}
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="max-w-2xl">
@@ -342,7 +343,7 @@ const FlmFeedDetailsView = ({ feed, theatres }: { feed: FlmFeed; theatres: Theat
           <div className="max-h-[50vh] overflow-y-auto rounded-md border border-border">
             {createMode ? <div className="p-4"><IncomingSummary feed={feed} /></div> : selectedChanges.map((field) => <div key={field.key} className="grid gap-1 border-b border-border p-3 last:border-b-0 sm:grid-cols-[140px_1fr_24px_1fr]"><p className="text-xs font-medium">{field.label}</p><p className="text-xs text-muted-foreground line-through">{field.current}</p><span className="text-xs text-muted-foreground">→</span><p className="text-xs font-medium">{field.incoming}</p></div>)}
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button><Button onClick={finish} disabled={saving}>{saving ? "Saving…" : "Confirm"}</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setConfirmOpen(false)}>{common.cancel}</Button><Button onClick={finish} loading={saving}>{common.confirm}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -11,6 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { QubeAcsScreenDevice } from "@/data/qubeAcsData";
 import { cn } from "@/lib/utils";
+import { common } from "@/i18n/common";
 
 type Status = "Active" | "Device Paused" | "Inactive";
 
@@ -131,7 +132,7 @@ export const EditScreenDeviceDialog = ({ open, onOpenChange, screen, onSave }: P
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{common.cancel}</Button>
           <Button onClick={handleSave}>Save</Button>
         </DialogFooter>
       </DialogContent>
