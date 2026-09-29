@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type pg from "pg";
 import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
-import { IMAX_INTEGRATION_TYPES, SCREEN_STATUS_REASON_TYPES, type IPAddress, type Screen, type ScreenDevice, type StatusReason, type Suite, type TemporaryClosure } from "../../src/types";
+import { IMAX_INTEGRATION_TYPES, SCREEN_STATUS_REASON_TYPES, isImaxScreen, type IPAddress, type Screen, type ScreenDevice, type ScreenOptions, type StatusReason, type Suite, type TemporaryClosure } from "../../src/types";
 import { normalizeScreenNumber, screenIdentityErrors } from "../../src/data/screenRules";
 
 export const screens = new Hono();
@@ -20,6 +20,9 @@ export const SCREEN_JSON = `json_build_object(
   'imaxIntegrated', s.imax_integrated, 'imaxIntegrationType', s.imax_integration_type, 'status', s.status,
   'statusReasonId', s.status_reason_id, 'statusComments', s.status_comments,
   'statusReason', (SELECT r.reason FROM status_reasons r WHERE r.id = s.status_reason_id),
+  'screenTypeId', s.screen_type_id, 'screenManufacturerId', s.screen_manufacturer_id,
+  'digitalIntegratorId', s.digital_integrator_id, 'threeDModelIds', s.three_d_model_ids,
+  'datasatProviderIds', s.datasat_provider_ids, 'adConsolidatorIds', s.ad_consolidator_ids,
   'closureNotes', s.closure_notes, 'seatingCapacity', s.seating_capacity, 'coolingType', s.cooling_type,
   'wheelchairAccessibility', s.wheelchair_accessibility, 'motionSeats', s.motion_seats,
   'dimensions', s.dimensions, 'projection', s.projection,
@@ -148,6 +151,44 @@ export async function saveDeviceConfig(client: pg.PoolClient, screenId: string, 
 
 const SCREEN_STATUSES = ["Active", "Inactive", "Deleted"];
 
+/** Where each picture field's choices come from: a lookup kind or an industry-company role. */
+const PICTURE_FIELDS = {
+  screenTypeId: { label: "screen type", lookup: "SCREEN_TYPE" },
+  threeDModelIds: { label: "3D model", lookup: "THREE_D_MODEL" },
+  screenManufacturerId: { label: "screen manufacturer", role: "SCM" },
+  digitalIntegratorId: { label: "digital integrator", role: "DGI" },
+  datasatProviderIds: { label: "Datasat provider", role: "DSP" },
+  adConsolidatorIds: { label: "advertising consolidator", role: "ADC" },
+} as const;
+type PictureKey = keyof typeof PICTURE_FIELDS;
+
+/** A screen's picture fields, checked against their lists (400 for an id from the wrong list). */
+async function pictureFields(client: pg.PoolClient, s: Partial<Screen>) {
+  const out = {} as Record<PictureKey, string | string[] | null>;
+  for (const [key, source] of Object.entries(PICTURE_FIELDS) as [PictureKey, (typeof PICTURE_FIELDS)[PictureKey]][]) {
+    const multiple = key.endsWith("Ids");
+    const raw: unknown = s[key];
+    // Left out clears the field; null clears single choices; malformed shapes are a client error
+    if (raw !== undefined && (multiple
+      ? !Array.isArray(raw) || raw.some((v) => typeof v !== "string")
+      : raw !== null && typeof raw !== "string")) {
+      throw httpError(400, `${key} must be ${multiple ? "a list of ids" : "an id"}`);
+    }
+    const ids = multiple
+      ? [...new Set(((raw ?? []) as string[]).filter((v) => v !== ""))]
+      : typeof raw === "string" && raw ? [raw] : [];
+    if (ids.length) {
+      const { rows } = "lookup" in source
+        ? await client.query<{ id: string }>("SELECT id FROM screen_lookups WHERE id = ANY($1) AND kind = $2", [ids, source.lookup])
+        : await client.query<{ id: string }>("SELECT id FROM industry_companies WHERE id = ANY($1) AND $2 = ANY(roles)", [ids, source.role]);
+      const unknown = ids.filter((id) => !rows.some((r) => r.id === id));
+      if (unknown.length) throw httpError(400, `Not a ${source.label}: ${unknown.join(", ")}`);
+    }
+    out[key] = multiple ? ids : ids[0] ?? null;
+  }
+  return out;
+}
+
 /** Insert or update one screen of `theatreId` (incl. its device config and closures). */
 export async function saveScreen(client: pg.PoolClient, theatreId: string, s: Partial<Screen> & DeviceConfig) {
   const status = s.status ?? "Active";
@@ -168,7 +209,8 @@ export async function saveScreen(client: pg.PoolClient, theatreId: string, s: Pa
     if (!reason || reason.reason_type !== reasonType) throw httpError(400, `That isn't a reason for ${verb} a screen`);
   }
   const comments = reasonType && typeof s.statusComments === "string" && s.statusComments.trim() ? s.statusComments.trim() : null;
-  const imaxIntegrated = !!s.imaxIntegrated;
+  const picture = await pictureFields(client, s);
+  const imaxIntegrated = !!s.imaxIntegrated && isImaxScreen(s.projection?.experiences);
   const imaxType = imaxIntegrated ? s.imaxIntegrationType ?? null : null;
   if (imaxIntegrated && !IMAX_INTEGRATION_TYPES.includes(imaxType as never)) {
     throw httpError(400, `IMAX integration type must be one of ${IMAX_INTEGRATION_TYPES.join(", ")}`);
@@ -181,9 +223,10 @@ export async function saveScreen(client: pg.PoolClient, theatreId: string, s: Pa
                           flm_management_lock, multi_thumbprint_kdm_screen, seating_capacity, cooling_type,
                           wheelchair_accessibility, motion_seats, closure_notes, operators, dimensions, projection,
                           sound, automation, imax_integrated, imax_integration_type, status_reason_id, status_comments,
-                          created_by, updated_by)
+                          screen_type_id, screen_manufacturer_id, digital_integrator_id, three_d_model_ids,
+                          datasat_provider_ids, ad_consolidator_ids, created_by, updated_by)
      VALUES (coalesce($1, gen_random_uuid()::text), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-             $16, $17, $18, $19, $21, $22, $23, $24, $25, $20, $20)
+             $16, $17, $18, $19, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $20, $20)
      ON CONFLICT (id) DO UPDATE SET number = EXCLUDED.number, name = EXCLUDED.name, uuid = EXCLUDED.uuid,
        third_party_id = EXCLUDED.third_party_id, status = EXCLUDED.status,
        auto_screen_update_lock = EXCLUDED.auto_screen_update_lock, flm_management_lock = EXCLUDED.flm_management_lock,
@@ -193,7 +236,10 @@ export async function saveScreen(client: pg.PoolClient, theatreId: string, s: Pa
        dimensions = EXCLUDED.dimensions, projection = EXCLUDED.projection, sound = EXCLUDED.sound,
        automation = EXCLUDED.automation, imax_integrated = EXCLUDED.imax_integrated,
        imax_integration_type = EXCLUDED.imax_integration_type, status_reason_id = EXCLUDED.status_reason_id,
-       status_comments = EXCLUDED.status_comments, updated_by = EXCLUDED.updated_by
+       status_comments = EXCLUDED.status_comments, screen_type_id = EXCLUDED.screen_type_id,
+       screen_manufacturer_id = EXCLUDED.screen_manufacturer_id, digital_integrator_id = EXCLUDED.digital_integrator_id,
+       three_d_model_ids = EXCLUDED.three_d_model_ids, datasat_provider_ids = EXCLUDED.datasat_provider_ids,
+       ad_consolidator_ids = EXCLUDED.ad_consolidator_ids, updated_by = EXCLUDED.updated_by
      WHERE screens.theatre_id = EXCLUDED.theatre_id
      RETURNING id`,
     [s.id || null, theatreId, number, name, s.uuid || null, s.thirdPartyId || null, status,
@@ -201,7 +247,9 @@ export async function saveScreen(client: pg.PoolClient, theatreId: string, s: Pa
       !!s.wheelchairAccessibility, !!s.motionSeats, s.closureNotes || null,
       JSON.stringify((s.operators ?? []).filter((o) => o && (o.name || o.email || o.phone))),
       JSON.stringify(s.dimensions ?? {}), JSON.stringify(s.projection ?? {}), JSON.stringify(s.sound ?? {}), CURRENT_USER,
-      !!s.automation, imaxIntegrated, imaxType, reasonId, comments],
+      !!s.automation, imaxIntegrated, imaxType, reasonId, comments,
+      picture.screenTypeId, picture.screenManufacturerId, picture.digitalIntegratorId, picture.threeDModelIds,
+      picture.datasatProviderIds, picture.adConsolidatorIds],
   );
   if (rows.length === 0) throw httpError(409, `Screen ${s.id} belongs to another theatre`);
   const screenId = rows[0].id;
@@ -230,6 +278,22 @@ export async function loadScreen(id: string) {
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
+
+/** Choices for the screen form's picture fields. */
+screens.get("/options", async (c) => {
+  const lookups = await query<{ kind: string; id: string; name: string }>("SELECT kind, id, name FROM screen_lookups ORDER BY name");
+  const companies = await query<{ id: string; name: string; roles: string[] }>("SELECT id, name, roles FROM industry_companies ORDER BY name");
+  const lookup = (kind: string) => lookups.filter((l) => l.kind === kind).map(({ id, name }) => ({ id, name }));
+  const byRole = (role: string) => companies.filter((co) => co.roles.includes(role)).map(({ id, name }) => ({ id, name }));
+  return c.json<ScreenOptions>({
+    screenTypes: lookup("SCREEN_TYPE"),
+    threeDModels: lookup("THREE_D_MODEL"),
+    screenManufacturers: byRole("SCM"),
+    digitalIntegrators: byRole("DGI"),
+    datasatProviders: byRole("DSP"),
+    adConsolidators: byRole("ADC"),
+  });
+});
 
 /** Reasons for deactivating and deleting a screen, in display order. */
 screens.get("/status-reasons", async (c) => c.json(await query<StatusReason>(

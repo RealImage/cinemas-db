@@ -3,7 +3,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Screen } from "@/types";
+import { Screen, isImaxScreen } from "@/types";
+import { PictureFields } from "../components/PictureFields";
 import { projectionExperiences, projectionTypes } from "@/data/screenExperienceData";
 
 interface ProjectionTabProps {
@@ -26,8 +27,15 @@ export const ProjectionTab = ({
   };
   
   const experiences = formData.projection?.experiences || [];
-  const toggleExperience = (x: string) =>
-    handleProjectionChange("experiences", experiences.includes(x) ? experiences.filter((e) => e !== x) : [...experiences, x]);
+  // Removing the last IMAX experience also drops the IMAX integration, which only IMAX screens track
+  const toggleExperience = (x: string) => {
+    const next = experiences.includes(x) ? experiences.filter((e) => e !== x) : [...experiences, x];
+    setFormData((prev) => ({
+      ...prev,
+      projection: { ...(prev.projection || {}), experiences: next },
+      ...(!isImaxScreen(next) && { imaxIntegrated: false, imaxIntegrationType: null }),
+    }));
+  };
 
   return (
     <div className="mt-4 space-y-4">
@@ -82,6 +90,8 @@ export const ProjectionTab = ({
           ))}
         </div>
       </div>
+
+      <PictureFields formData={formData} setFormData={setFormData} />
     </div>
   );
 };
