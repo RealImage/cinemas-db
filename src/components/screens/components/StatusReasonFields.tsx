@@ -28,7 +28,12 @@ export function StatusReasonFields({ status, reasonId, comments, onChange, error
           onValueChange={(v) => onChange({ statusReasonId: v, statusComments: comments ?? "" })}
           disabled={!reasonsQuery.data}
         >
-          <SelectTrigger id={`${idPrefix}-reason`} aria-invalid={!!error}>
+          <SelectTrigger
+            id={`${idPrefix}-reason`}
+            aria-required="true"
+            aria-invalid={!!error}
+            aria-describedby={error ? `${idPrefix}-reason-error` : undefined}
+          >
             <SelectValue placeholder={
               reasonsQuery.isError ? "Could not load reasons" : reasonsQuery.data ? "Select reason" : "Loading reasons…"
             } />
@@ -43,7 +48,7 @@ export function StatusReasonFields({ status, reasonId, comments, onChange, error
             <button type="button" className="underline" onClick={() => reasonsQuery.refetch()}>Retry</button>
           </p>
         )}
-        {error && <p className="text-xs text-red-500">{error}</p>}
+        {error && <p id={`${idPrefix}-reason-error`} className="text-xs text-red-500">{error}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor={`${idPrefix}-comments`}>Additional Comments</Label>
