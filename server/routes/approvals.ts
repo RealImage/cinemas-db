@@ -28,15 +28,15 @@ approvals.get("/summary", async (c) => {
       (SELECT count(*) FROM (SELECT 1 FROM screen_devices GROUP BY lower(manufacturer), lower(serial_number)
                              HAVING count(DISTINCT screen_id) > 1) x) AS device_conflicts,
       (SELECT count(*) FROM theatres WHERE status <> 'Deleted' AND chain_id IS NULL) AS no_chain,
-      (SELECT count(*) FROM theatres WHERE status <> 'Deleted'
-         AND coalesce(city, '') = '' AND coalesce(country, '') = '' AND coalesce(address, '') = '') AS no_location,
+      -- Theatres can be created without a location; these rows count the ones still to complete
+      (SELECT count(*) FROM theatres WHERE status <> 'Deleted' AND (coalesce(trim(address), '') = ''
+         OR coalesce(city, '') = '' OR coalesce(state, '') = '' OR coalesce(country, '') = '')) AS missing_location_fields,
       (SELECT coalesce(sum(n), 0) FROM (SELECT count(*) AS n FROM theatres WHERE status <> 'Deleted'
          GROUP BY lower(trim(name)), lower(coalesce(city, '')) HAVING count(*) > 1) x) AS duplicates,
       (SELECT count(*) FROM (SELECT DISTINCT lower(d.manufacturer), lower(d.model) FROM screen_devices d
          WHERE NOT EXISTS (SELECT 1 FROM tdl_devices t WHERE lower(t.manufacturer) = lower(d.manufacturer)
                            AND lower(t.model) = lower(d.model))) x) AS missing_models,
-      (SELECT count(*) FROM theatres WHERE status <> 'Deleted' AND (latitude IS NULL OR longitude IS NULL)
-         AND coalesce(city, '') <> '') AS missing_places,
+      (SELECT count(*) FROM theatres WHERE status <> 'Deleted' AND (latitude IS NULL OR longitude IS NULL)) AS missing_lat_long,
       (SELECT count(*) FROM theatres WHERE status <> 'Deleted' AND coalesce(country, '') <> ''
          AND coalesce(state, '') = '') AS missing_province,
       (SELECT count(*) FROM screens WHERE status <> 'Deleted' AND name ~ '^\\s*\\d+\\s*$') AS numeric_names,
@@ -60,10 +60,11 @@ approvals.get("/summary", async (c) => {
     conflicts: [
       { label: "Device Conflicts", count: r.device_conflicts },
       { label: "Facilities without Chains", count: r.no_chain },
-      { label: "Facilities without Location", count: r.no_location },
+
       { label: "Facility Duplications", count: r.duplicates },
+      { label: "Missing Lat / Long", count: r.missing_lat_long },
+      { label: "Missing Location Fields", count: r.missing_location_fields },
       { label: "Missing Models", count: r.missing_models },
-      { label: "Missing Places", count: r.missing_places },
       { label: "Missing Province Codes", count: r.missing_province },
       { label: "Screens with Numeric Names", count: r.numeric_names },
       { label: "Screens without Devices", count: r.no_devices },
