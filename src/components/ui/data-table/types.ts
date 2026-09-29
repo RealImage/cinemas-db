@@ -46,4 +46,8 @@ export interface DataTableProps<T> {
   showFilters?: boolean;
   /** Extra controls rendered at the right end of the search row (e.g. a page's own FilterButton). */
   toolbar?: ReactNode;
+  /** Shown between the search row and the table (e.g. active filter chips). */
+  subToolbar?: ReactNode;
+  /** Server-side tables: changing this sends the table back to page 1 (e.g. when the page's own filters change). */
+  pageResetKey?: string;
 }

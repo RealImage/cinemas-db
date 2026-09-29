@@ -1,13 +1,20 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState } from "react";
+import { AlertTriangle, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
-import type { Filter } from "@/components/ui/data-table/types";
+import type { Filter, SortDirection } from "@/components/ui/data-table/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Theatre } from "@/types";
-import { useTheatreColumns, useEnhancedColumns } from "./TheatreColumns";
+import { useTheatreColumns, useEnhancedColumns, type TheatreListRow } from "./TheatreColumns";
 import { getTheatreActions, useTheatreActions } from "./TheatreActions";
+import { TagChips } from "./TheatreTags";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { useTheatreFacets, useTheatrePage } from "@/hooks/api/theatres";
+import {
+  THEATRE_SEARCH_MODES, THEATRE_SEARCH_PLACEHOLDERS, isTheatreSearchMode, sameTag, type TheatreSearchMode, type TheatreTag,
+} from "@/data/theatreSearch";
 
 type TheatreTableProps = {
-  theatres: Theatre[];
   onViewTheatre: (theatre: Theatre) => void;
   onViewLogs: (theatre: Theatre) => void;
   onViewWtf: (theatre: Theatre) => void;
@@ -15,175 +22,119 @@ type TheatreTableProps = {
   onDelete: (theatre: Theatre) => void;
 };
 
-export const TheatreTable = ({
-  theatres,
-  onViewTheatre,
-  onViewLogs,
-  onViewWtf,
-  onToggleStatus,
-  onDelete
-}: TheatreTableProps) => {
-  const [filteredTheatres, setFilteredTheatres] = useState<Theatre[]>([]);
-  const [totalTheatres, setTotalTheatres] = useState<number>(0);
-  const [paginationState, setPaginationState] = useState({
-    page: 1,
-    pageSize: DEFAULT_PAGE_SIZE,
-    searchTerm: "",
-    sortColumn: "",
-    sortDirection: null as "asc" | "desc" | null,
-    filters: [] as Filter<Theatre>[]
+/** Column filters and the server parameter each one sets. */
+const FILTER_PARAMS: Partial<Record<keyof TheatreListRow, string>> = {
+  status: "status",
+  listing: "listing",
+  chainName: "chain",
+  companyName: "company",
+};
+
+/** The Theatre List. Search, filters, tags, sorting and paging all run on the server, one page at a time. */
+export const TheatreTable = ({ onViewTheatre, onViewLogs, onViewWtf, onToggleStatus, onDelete }: TheatreTableProps) => {
+  const [page, setPage] = useState({ page: 1, pageSize: DEFAULT_PAGE_SIZE });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchMode, setSearchMode] = useState<TheatreSearchMode>("all");
+  const [sort, setSort] = useState<{ key?: string; dir?: "asc" | "desc" }>({});
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [tags, setTags] = useState<TheatreTag[]>([]);
+
+  const pageQuery = useTheatrePage({
+    ...page, q: searchTerm, mode: searchMode, sort: sort.key, dir: sort.dir, filters, tags,
   });
-  
-  const columns = useTheatreColumns();
-  const enhancedColumns = useEnhancedColumns(columns);
+  const facetsQuery = useTheatreFacets();
+  const facets = facetsQuery.data;
+
+  // Anything that changes which theatres match starts again from page 1
+  const toFirstPage = () => setPage((p) => ({ ...p, page: 1 }));
+  const addTag = (tag: TheatreTag) => {
+    setTags((current) => (current.some((t) => sameTag(t, tag)) ? current : [...current, tag]));
+    toFirstPage();
+  };
+  const removeTag = (tag: TheatreTag) => { setTags((current) => current.filter((t) => !sameTag(t, tag))); toFirstPage(); };
+
+  const columns = useEnhancedColumns(useTheatreColumns({ onTag: addTag }), facets);
   const { handleEditTheatre } = useTheatreActions();
-  
-  // Handle pagination change
-  const handlePaginationChange = (page: number, pageSize: number) => {
-    setPaginationState(prev => ({
-      ...prev,
-      page,
-      pageSize
-    }));
-  };
-  
-  // Handle search change
-  const handleSearchChange = (searchTerm: string) => {
-    setPaginationState(prev => ({
-      ...prev,
-      searchTerm,
-      page: 1 // Reset to first page on new search
-    }));
-  };
-  
-  // Handle sort change
-  const handleSortChange = (sortColumn: keyof Theatre | null, sortDirection: "asc" | "desc" | null) => {
-    setPaginationState(prev => ({
-      ...prev,
-      sortColumn: sortColumn as string,
-      sortDirection,
-      page: 1 // Reset to first page on sort change
-    }));
-  };
-  
-  // Handle filter change
-  const handleFilterChange = (filters: Filter<Theatre>[]) => {
-    setPaginationState(prev => ({
-      ...prev,
-      filters,
-      page: 1 // Reset to first page on filter change
-    }));
-  };
-  
-  // Filter, sort and page the full list the API returned
-  const fetchData = useCallback(() => {
-    {
-      // Apply search filtering
-      let filtered = [...theatres];
-      
-      if (paginationState.searchTerm) {
-        filtered = filtered.filter(theatre => {
-          return (
-            theatre.name.toLowerCase().includes(paginationState.searchTerm.toLowerCase()) ||
-            theatre.displayName.toLowerCase().includes(paginationState.searchTerm.toLowerCase()) ||
-            theatre.chainName.toLowerCase().includes(paginationState.searchTerm.toLowerCase()) ||
-            theatre.companyName.toLowerCase().includes(paginationState.searchTerm.toLowerCase()) ||
-            theatre.address.toLowerCase().includes(paginationState.searchTerm.toLowerCase())
-          );
-        });
-      }
-      
-      // Apply filters
-      if (paginationState.filters.length > 0) {
-        filtered = filtered.filter(theatre => {
-          return paginationState.filters.every(filter => {
-            const { column, value } = filter;
-            
-            if (column === "status") {
-              return theatre.status === value;
-            }
-            
-            if (column === "screenCount") {
-              const count = parseInt(value as string, 10);
-              return theatre.screenCount === count;
-            }
-            
-            if (column === "chainName") {
-              return theatre.chainName === value;
-            }
-            
-            if (column === "companyName") {
-              return theatre.companyName === value;
-            }
-            
-            return true;
-          });
-        });
-      }
-      
-      // Apply sorting
-      if (paginationState.sortColumn && paginationState.sortDirection) {
-        filtered.sort((a, b) => {
-          const aValue = a[paginationState.sortColumn as keyof Theatre];
-          const bValue = b[paginationState.sortColumn as keyof Theatre];
-          
-          if (typeof aValue === 'string' && typeof bValue === 'string') {
-            return paginationState.sortDirection === 'asc'
-              ? aValue.localeCompare(bValue)
-              : bValue.localeCompare(aValue);
-          }
-          
-          if (aValue < bValue) return paginationState.sortDirection === 'asc' ? -1 : 1;
-          if (aValue > bValue) return paginationState.sortDirection === 'asc' ? 1 : -1;
-          return 0;
-        });
-      }
-      
-      // Store the total for pagination
-      setTotalTheatres(filtered.length);
-      
-      // Apply pagination 
-      const start = (paginationState.page - 1) * paginationState.pageSize;
-      const paginatedResults = filtered.slice(
-        start, 
-        start + paginationState.pageSize
-      );
-      
-      setFilteredTheatres(paginatedResults);
+
+  const handleFilterChange = (next: Filter<TheatreListRow>[]) => {
+    const params: Record<string, string> = {};
+    for (const f of next) {
+      const name = FILTER_PARAMS[f.column];
+      if (name && typeof f.value === "string" && f.value) params[name] = f.value;
     }
-  }, [theatres, paginationState]);
-  
-  // Fetch data whenever pagination state changes
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-  
-  const getActionsForTheatre = (theatre: Theatre) => {
-    return getTheatreActions({
-      theatre,
-      onViewDetails: onViewTheatre,
-      onViewLogs: onViewLogs,
-      onViewWtf,
-      onEdit: handleEditTheatre,
-      onDelete: onDelete,
-      onToggleStatus: onToggleStatus
-    });
+    setFilters(params);
+    toFirstPage();
   };
-  
+  const handleSortChange = (key: keyof TheatreListRow | null, direction: SortDirection) => {
+    setSort(key && direction ? { key: String(key), dir: direction } : {});
+    toFirstPage();
+  };
+
+  if (pageQuery.isPending) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground" role="status">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading theatres
+      </div>
+    );
+  }
+
   return (
-    <DataTable
-      data={filteredTheatres}
-      columns={enhancedColumns}
-      searchPlaceholder="Search theatres by name, chain, company, location..."
-      actions={(row) => getActionsForTheatre(row)}
-      onRowClick={onViewTheatre}
-      serverSide={true}
-      totalCount={totalTheatres}
-      onPaginationChange={handlePaginationChange}
-      onSearchChange={handleSearchChange}
-      onSortChange={handleSortChange}
-      onFilterChange={handleFilterChange}
-      pageSize={DEFAULT_PAGE_SIZE}
-    />
+    <div className="space-y-2">
+      {pageQuery.isError && (
+        <div className="flex items-center gap-3" role="alert">
+          <p className="flex items-center gap-2 text-sm text-red-500">
+            <AlertTriangle className="h-4 w-4" /> Could not load theatres: {pageQuery.error.message}
+          </p>
+          <Button variant="outline" size="sm" onClick={() => pageQuery.refetch()} loading={pageQuery.isFetching}>Retry</Button>
+        </div>
+      )}
+      <DataTable<TheatreListRow>
+        data={pageQuery.data?.rows ?? []}
+        columns={columns}
+        searchPlaceholder={THEATRE_SEARCH_PLACEHOLDERS[searchMode]}
+        toolbar={
+          <Select
+            value={searchMode}
+            onValueChange={(v) => { if (isTheatreSearchMode(v)) { setSearchMode(v); toFirstPage(); } }}
+          >
+            <SelectTrigger className="w-40" aria-label="Search in">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {THEATRE_SEARCH_MODES.map((m) => (
+                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+        subToolbar={
+          <TagChips
+            tags={tags}
+            facets={facets}
+            facetsError={facetsQuery.isError ? facetsQuery.error.message : null}
+            onRetryFacets={() => facetsQuery.refetch()}
+            onAdd={addTag}
+            onRemove={removeTag}
+            onClear={() => { setTags([]); toFirstPage(); }}
+          />
+        }
+        // DataTable resets its own pager for search and column filters; these are the page's own changes
+        pageResetKey={`${searchMode}|${sort.key ?? ""}:${sort.dir ?? ""}|${tags.map((t) => `${t.kind}:${t.value}`).join(",")}`}
+        actions={(row) =>
+          getTheatreActions({
+            theatre: row, onViewDetails: onViewTheatre, onViewLogs, onViewWtf,
+            onEdit: handleEditTheatre, onDelete, onToggleStatus,
+          })
+        }
+        onRowClick={onViewTheatre}
+        serverSide
+        totalCount={pageQuery.data?.total ?? 0}
+        onPaginationChange={(p, pageSize) => setPage({ page: p, pageSize })}
+        onSearchChange={(term) => { setSearchTerm(term); toFirstPage(); }}
+        onSortChange={handleSortChange}
+        onFilterChange={handleFilterChange}
+        pageSize={DEFAULT_PAGE_SIZE}
+      />
+    </div>
   );
 };

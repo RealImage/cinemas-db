@@ -1,8 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Company, DashboardStats, Theatre } from "@/types";
 import type { WireTAPDevice } from "@/types/wireTAP";
 import type { WtfData } from "@/data/wtfData";
+import type { TheatreFacets, TheatrePage, TheatreSearchMode, TheatreTag } from "@/data/theatreSearch";
 
 export const theatreKeys = {
   all: ["theatres"] as const,
@@ -12,6 +13,8 @@ export const theatreKeys = {
   wiretap: (id: string) => ["theatres", "wiretap", id] as const,
   companies: ["theatres", "companies"] as const,
   stats: ["theatres", "stats"] as const,
+  page: (query: string) => ["theatres", "page", query] as const,
+  facets: ["theatres", "facets"] as const,
 };
 
 export type TheatreLogEntry = {
@@ -30,6 +33,35 @@ export const useTheatres = ({ withScreens = false } = {}) =>
     queryKey: theatreKeys.list(withScreens),
     queryFn: () => api.get<Theatre[]>(`/theatres${withScreens ? "?include=screens" : ""}`),
   });
+
+export interface TheatrePageParams {
+  page: number;
+  pageSize: number;
+  q: string;
+  mode: TheatreSearchMode;
+  sort?: string;
+  dir?: "asc" | "desc";
+  /** Column filters: status, listing, chain, company. */
+  filters: Record<string, string>;
+  tags: TheatreTag[];
+}
+
+/** One page of the Theatre List, searched, filtered and sorted on the server. */
+export const useTheatrePage = (p: TheatrePageParams) => {
+  const qs = new URLSearchParams({ page: String(p.page), pageSize: String(p.pageSize), mode: p.mode });
+  if (p.q.trim()) qs.set("q", p.q.trim());
+  if (p.sort && p.dir) { qs.set("sort", p.sort); qs.set("dir", p.dir); }
+  for (const [name, value] of Object.entries(p.filters)) qs.append(name, value);
+  for (const tag of p.tags) qs.append("tag", `${tag.kind}:${tag.value}`);
+  return useQuery({
+    queryKey: theatreKeys.page(qs.toString()),
+    queryFn: () => api.get<TheatrePage>(`/theatres/page?${qs}`),
+    placeholderData: keepPreviousData,
+  });
+};
+
+export const useTheatreFacets = () =>
+  useQuery({ queryKey: theatreKeys.facets, queryFn: () => api.get<TheatreFacets>("/theatres/facets") });
 
 export const useTheatre = (id: string | undefined) =>
   useQuery({
