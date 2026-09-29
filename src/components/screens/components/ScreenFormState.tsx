@@ -34,6 +34,9 @@ export const useScreenForm = ({
       autoScreenUpdateLock: false,
       flmManagementLock: false,
       multiThumbprintKdmScreen: false,
+      automation: false,
+      imaxIntegrated: false,
+      imaxIntegrationType: null,
       status: "Active",
       closureNotes: "",
       seatingCapacity: undefined,
@@ -80,14 +83,17 @@ export const useScreenForm = ({
   );
   
   const [submitted, setSubmitted] = useState(false);
-  const identityErrors = screenIdentityErrors(formData as Screen, otherScreens);
+  const identityErrors = {
+    ...screenIdentityErrors(formData as Screen, otherScreens),
+    imaxIntegrationType: formData.imaxIntegrated && !formData.imaxIntegrationType ? "Choose how the IMAX screen is integrated" : undefined,
+  };
   // "Enter a number or a name" waits for a save attempt; format and duplicate problems show as you type
   const errors = submitted ? identityErrors : { number: identityErrors.number, name: formData.name?.trim() ? identityErrors.name : undefined };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const problem = identityErrors.number ?? identityErrors.name;
+    const problem = identityErrors.number ?? identityErrors.name ?? identityErrors.imaxIntegrationType;
     if (problem) {
       setSubmitted(true);
       toast.error(problem);

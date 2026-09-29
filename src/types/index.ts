@@ -78,6 +78,9 @@ export type TemporaryClosure = {
   active: boolean;
 };
 
+export const IMAX_INTEGRATION_TYPES = ["WireTAP", "TMS", "Both"] as const;
+export type ImaxIntegrationType = (typeof IMAX_INTEGRATION_TYPES)[number];
+
 export type Screen = {
   id: string;
   theatreId: string;
@@ -89,6 +92,10 @@ export type Screen = {
   autoScreenUpdateLock: boolean;
   flmManagementLock: boolean;
   multiThumbprintKdmScreen: boolean;
+  automation?: boolean;
+  imaxIntegrated?: boolean;
+  /** Required when imaxIntegrated. */
+  imaxIntegrationType?: ImaxIntegrationType | null;
   status: "Active" | "Inactive" | "Deleted";
   closureNotes?: string;
   seatingCapacity?: number;

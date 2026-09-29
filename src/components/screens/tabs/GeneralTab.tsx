@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Combobox } from "@/components/ui/combobox";
 import { Screen } from "@/types";
 import { domainsList } from "../constants";
+import { ScreenFlags } from "../components/ScreenFlags";
 
 interface GeneralTabProps {
   formData: Partial<Screen>;
@@ -13,7 +14,7 @@ interface GeneralTabProps {
   setThirdPartyDomain: React.Dispatch<React.SetStateAction<string>>;
   thirdPartyValue: string;
   setThirdPartyValue: React.Dispatch<React.SetStateAction<string>>;
-  errors: { number?: string; name?: string };
+  errors: { number?: string; name?: string; imaxIntegrationType?: string };
 }
 
 export const GeneralTab = ({
@@ -114,6 +115,8 @@ export const GeneralTab = ({
           </SelectContent>
         </Select>
       </div>
+
+      <ScreenFlags formData={formData} setFormData={setFormData} error={errors.imaxIntegrationType} />
     </div>
   );
 };
