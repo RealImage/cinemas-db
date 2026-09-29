@@ -394,7 +394,7 @@ theatres.get("/systems", async (c) => {
 theatres.get("/companies", async (c) =>
   c.json(await query<Company>(`
     SELECT co.id, co.name, co.status, co.created_at AS "createdAt", co.updated_at AS "updatedAt",
-           (SELECT count(*) FROM chains ch WHERE ch.company_id = co.id) AS "chainCount",
+           (SELECT count(*) FROM chains ch WHERE ch.company_id = co.id AND ch.status <> 'Deleted') AS "chainCount",
            (SELECT count(*) FROM theatres t WHERE t.company_id = co.id) AS "theatreCount"
     FROM companies co WHERE co.status <> 'Deleted' ORDER BY co.name`)),
 );

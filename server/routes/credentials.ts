@@ -405,7 +405,7 @@ credentials.delete("/devices/:id/credentials/:credentialId", async (c) => {
 
 credentials.get("/ref-options", async (c) => {
   const [chainRows, theatreRows] = await Promise.all([
-    query<{ name: string }>("SELECT DISTINCT name FROM chains WHERE name <> ''"),
+    query<{ name: string }>("SELECT DISTINCT name FROM chains WHERE name <> '' AND status <> 'Deleted'"),
     query<{ name: string }>("SELECT DISTINCT name FROM theatres WHERE name <> ''"),
   ]);
   const sorted = (names: string[]) => Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
