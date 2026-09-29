@@ -22,7 +22,7 @@ interface ScreenFormProps {
   setThirdPartyValue: React.Dispatch<React.SetStateAction<string>>;
   onSubmit: (e: React.FormEvent) => void;
   isEditing: boolean;
-  errors: { number?: string; name?: string };
+  errors: { number?: string; name?: string; imaxIntegrationType?: string };
 }
 
 export const ScreenForm = ({
