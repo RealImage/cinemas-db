@@ -34,6 +34,9 @@ export function TheatreLogsDialog({ open, onOpenChange, theatre }: TheatreLogsDi
       case 'Listed': return 'text-emerald-600 bg-emerald-50 border-emerald-200';
       case 'Unlisted': return 'text-amber-600 bg-amber-50 border-amber-200';
       case 'Deleted': return 'text-red-600 bg-red-50 border-red-200';
+      case 'Deletion Requested': return 'text-orange-600 bg-orange-50 border-orange-200';
+      case 'Deletion Rejected': return 'text-slate-600 bg-slate-50 border-slate-200';
+      case 'Restored': return 'text-green-600 bg-green-50 border-green-200';
       default: return 'text-gray-600 bg-gray-50 border-gray-200';
     }
   };

@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Company, DashboardStats, Theatre, TheatreSystemOptions } from "@/types";
+import type { Company, DashboardStats, Theatre, TheatreDeletionRequest, TheatreSystemOptions } from "@/types";
 import type { WireTAPDevice } from "@/types/wireTAP";
 import type { TheatreLiveWire, WtfData } from "@/data/wtfData";
 import type { TheatreFacets, TheatrePage, TheatreSearchMode, TheatreTag } from "@/data/theatreSearch";
@@ -23,7 +23,7 @@ export type TheatreLogEntry = {
   id: string;
   date: string;
   section: "General Information" | "Location & Systems" | "Connectivity Details" | "Content & Key Delivery" | "Screen Management" | "IP & Suites";
-  action: "Created" | "Updated" | "Listed" | "Unlisted" | "Deleted";
+  action: "Created" | "Updated" | "Listed" | "Unlisted" | "Deleted" | "Deletion Requested" | "Deletion Rejected" | "Restored";
   updatedBy: { name: string; email?: string; phone?: string };
   oldValue?: string | null;
   newValue?: string | null;
@@ -135,6 +135,26 @@ export const useSetTheatreStatus = () => {
   });
 };
 
+/** Ask for a theatre to be deleted; an approver approves it in Approvals & Conflicts → Theatre Deletions. */
+export const useRequestTheatreDeletion = () => {
+  const invalidate = useInvalidateTheatres();
+  return useMutation({
+    mutationFn: ({ id, reasonId, comments }: { id: string; reasonId: string; comments: string }) =>
+      api.post<TheatreDeletionRequest>(`/theatres/${id}/deletion-request`, { reasonId, comments }),
+    onSuccess: invalidate,
+  });
+};
+
+/** Undo a soft delete (before the theatre is deleted permanently). */
+export const useRestoreTheatre = () => {
+  const invalidate = useInvalidateTheatres();
+  return useMutation({
+    mutationFn: (id: string) => api.post<Theatre>(`/theatres/${id}/restore`),
+    onSuccess: invalidate,
+  });
+};
+
+/** Delete a soft-deleted theatre permanently (allowed THEATRE_PERMANENT_DELETE_HOURS after the approval). */
 export const useDeleteTheatre = () => {
   const invalidate = useInvalidateTheatres();
   return useMutation({

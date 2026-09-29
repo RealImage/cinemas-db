@@ -20,12 +20,11 @@ export type ScreenDeviceConfigUpdate = {
   suites: SuiteConfig[];
 };
 
-/** Reasons for deactivating and deleting a screen. */
-export const useScreenStatusReasons = (enabled = true) =>
+/** The status reason lists: deactivating / deleting a screen, deleting a theatre (filter by reasonType). */
+export const useStatusReasons = () =>
   useQuery({
     queryKey: ["screens", "status-reasons"],
     queryFn: () => api.get<StatusReason[]>("/screens/status-reasons"),
-    enabled,
     staleTime: 5 * 60_000,
   });
 
