@@ -307,32 +307,44 @@ async function applyTheatre(client: pg.PoolClient, id: string, body: TheatreInpu
 
 /**
  * The theatre's TMS (`tmsId`) and ticketing system (`ticketingSystemId`), from the Credentials Manager; blank
- * clears one. A newly chosen TMS must be linked to the theatre's chain, so a wrong TMS can't be mapped.
+ * clears one. The TMS must be linked to the theatre's chain, so a wrong TMS can't be mapped: a newly chosen one is
+ * checked, and so is the kept one whenever the chain is saved, since the chain may have changed.
  */
 async function saveSystems(client: pg.PoolClient, theatreId: string, body: TheatreInput) {
+  // Lock the chain first, as PUT /chains/:id/tms does, so its TMS links can't change during this save
+  const { rows: [theatre] } = await client.query<{ chain_id: string | null }>(
+    "SELECT chain_id FROM theatres WHERE id = $1", [theatreId]);
+  const { rows: [chain] } = theatre.chain_id
+    ? await client.query<{ name: string }>("SELECT name FROM chains WHERE id = $1 FOR SHARE", [theatre.chain_id])
+    : { rows: [] as { name: string }[] };
+
   for (const [key, kind] of [["tmsId", "TMS"], ["ticketingSystemId", "Ticketing System"]] as const) {
-    if (!(key in body)) continue;
-    const deviceId = blankToNull(body[key]) as string | null;
-    if (!deviceId) {
-      await client.query("DELETE FROM theatre_systems WHERE theatre_id = $1 AND kind = $2", [theatreId, kind]);
-      continue;
-    }
+    const chainSaved = kind === "TMS" && "chainId" in body;
+    if (!(key in body) && !chainSaved) continue;
     const { rows: [current] } = await client.query<{ device_id: string }>(
       "SELECT device_id FROM theatre_systems WHERE theatre_id = $1 AND kind = $2 FOR UPDATE", [theatreId, kind]);
-    if (current?.device_id === deviceId) continue;
-    const { rows: [device] } = await client.query<{ name: string }>(
-      `SELECT ${SYSTEM_NAME} AS name FROM credential_devices d WHERE d.id = $1 AND d.type = $2 FOR SHARE`, [deviceId, kind]);
-    if (!device) throw httpError(400, `${deviceId} isn't a ${kind} in the Credentials Manager`);
-    if (kind === "TMS") {
-      const { rows: [link] } = await client.query<{ chain: string | null; linked: boolean }>(
-        `SELECT c.name AS chain, EXISTS (SELECT 1 FROM chain_tms x WHERE x.chain_id = t.chain_id AND x.device_id = $2) AS linked
-         FROM theatres t LEFT JOIN chains c ON c.id = t.chain_id WHERE t.id = $1`, [theatreId, deviceId]);
-      if (!link.chain) throw httpError(400, "Choose the theatre's chain before its TMS");
-      if (!link.linked) throw httpError(400, `${device.name} isn't linked to ${link.chain}. Add it to the chain first.`);
+    const wanted = key in body ? (blankToNull(body[key]) as string | null) : current?.device_id ?? null;
+    if (!wanted) {
+      if (current) await client.query("DELETE FROM theatre_systems WHERE theatre_id = $1 AND kind = $2", [theatreId, kind]);
+      continue;
     }
-    await client.query(
-      `INSERT INTO theatre_systems (theatre_id, kind, device_id) VALUES ($1, $2, $3)
-       ON CONFLICT (theatre_id, kind) DO UPDATE SET device_id = excluded.device_id`, [theatreId, kind, deviceId]);
+    const changed = wanted !== current?.device_id;
+    if (!changed && !chainSaved) continue;
+    const { rows: [device] } = await client.query<{ name: string }>(
+      `SELECT ${SYSTEM_NAME} AS name FROM credential_devices d WHERE d.id = $1 AND d.type = $2 FOR SHARE`, [wanted, kind]);
+    if (!device) throw httpError(400, `${wanted} isn't a ${kind} in the Credentials Manager`);
+    if (kind === "TMS") {
+      const fix = changed ? "Add it to the chain first." : "Choose one of the chain's TMSes, or None.";
+      if (!chain) throw httpError(400, changed ? "Choose the theatre's chain before its TMS" : `The theatre needs a chain to keep its TMS (${device.name}). Choose a chain, or set the TMS to None.`);
+      const { rows: [link] } = await client.query(
+        "SELECT 1 FROM chain_tms WHERE chain_id = $1 AND device_id = $2", [theatre.chain_id, wanted]);
+      if (!link) throw httpError(400, `${device.name} isn't linked to ${chain.name}. ${fix}`);
+    }
+    if (changed) {
+      await client.query(
+        `INSERT INTO theatre_systems (theatre_id, kind, device_id) VALUES ($1, $2, $3)
+         ON CONFLICT (theatre_id, kind) DO UPDATE SET device_id = excluded.device_id`, [theatreId, kind, wanted]);
+    }
   }
 }
 

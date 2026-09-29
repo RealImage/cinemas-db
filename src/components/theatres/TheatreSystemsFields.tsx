@@ -69,12 +69,14 @@ export function TheatreSystemsFields({
   onChange: (key: "tmsId" | "ticketingSystemId", value: string | null) => void;
 }) {
   const options = useTheatreSystemOptions(chainId || undefined);
-  const initialChain = useRef(chainId);
   const tms = options.data?.tms;
+  // The chain whose TMS list the selection was last checked against; the saved TMS starts out as-is
+  const checkedChain = useRef(chainId);
 
   useEffect(() => {
-    if (!tms || !tmsId || chainId === initialChain.current) return;
-    if (!tms.some((o) => o.id === tmsId)) onChange("tmsId", null);
+    if (!tms || chainId === checkedChain.current) return;
+    checkedChain.current = chainId;
+    if (tmsId && !tms.some((o) => o.id === tmsId)) onChange("tmsId", null);
   }, [tms, tmsId, chainId, onChange]);
 
   const tmsNote = !chainId
@@ -92,7 +94,8 @@ export function TheatreSystemsFields({
         currentName={tmsName}
         options={tms}
         onChange={(v) => onChange("tmsId", v)}
-        disabled={!chainId}
+        // Without a chain there's nothing to pick, but a saved TMS can still be cleared
+        disabled={!chainId && !tmsId}
         note={tmsNote}
         info="Only TMSes linked to this theatre's chain are listed, so a wrong TMS can't be mapped. To use another TMS, first add it to the chain: Chains › Theatre Management Systems."
       />
