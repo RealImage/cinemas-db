@@ -3,6 +3,7 @@ import type pg from "pg";
 import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
 import type { IPAddress, Screen, ScreenDevice, Suite, TemporaryClosure } from "../../src/types";
+import { normalizeScreenNumber, screenIdentityErrors } from "../../src/data/screenRules";
 
 export const screens = new Hono();
 
@@ -12,7 +13,7 @@ export const screens = new Hono();
 
 /** Screen as the UI's `Screen` type, for a row aliased `s`. */
 export const SCREEN_JSON = `json_build_object(
-  'id', s.id, 'theatreId', s.theatre_id, 'number', coalesce(s.number, ''), 'name', s.name,
+  'id', s.id, 'theatreId', s.theatre_id, 'number', coalesce(s.number, ''), 'name', coalesce(s.name, ''),
   'uuid', coalesce(s.uuid, ''), 'thirdPartyId', s.third_party_id, 'operators', s.operators,
   'autoScreenUpdateLock', s.auto_screen_update_lock, 'flmManagementLock', s.flm_management_lock,
   'multiThumbprintKdmScreen', s.multi_thumbprint_kdm_screen, 'status', s.status,
@@ -146,9 +147,13 @@ const SCREEN_STATUSES = ["Active", "Inactive", "Deleted"];
 
 /** Insert or update one screen of `theatreId` (incl. its device config and closures). */
 export async function saveScreen(client: pg.PoolClient, theatreId: string, s: Partial<Screen> & DeviceConfig) {
-  const name = nonEmpty(s.name, "Screen name");
   const status = s.status ?? "Active";
   if (!SCREEN_STATUSES.includes(status)) throw httpError(400, `Invalid screen status "${status}"`);
+  // Uniqueness within the theatre is checked on the whole list (theatres.ts) and by the database at commit
+  const errors = screenIdentityErrors({ number: s.number ?? "", name: s.name ?? "", status }, []);
+  if (errors.number || errors.name) throw httpError(400, (errors.number ?? errors.name)!);
+  const number = normalizeScreenNumber(s.number) || null;
+  const name = typeof s.name === "string" && s.name.trim() ? s.name.trim() : null;
   const seating = s.seatingCapacity === undefined || s.seatingCapacity === null || (s.seatingCapacity as unknown) === ""
     ? null : Number(s.seatingCapacity);
   if (seating !== null && (!Number.isInteger(seating) || seating < 0)) throw httpError(400, "Seating capacity must be a whole number");
@@ -169,7 +174,7 @@ export async function saveScreen(client: pg.PoolClient, theatreId: string, s: Pa
        updated_by = EXCLUDED.updated_by
      WHERE screens.theatre_id = EXCLUDED.theatre_id
      RETURNING id`,
-    [s.id || null, theatreId, s.number ?? null, name, s.uuid || null, s.thirdPartyId || null, status,
+    [s.id || null, theatreId, number, name, s.uuid || null, s.thirdPartyId || null, status,
       !!s.autoScreenUpdateLock, !!s.flmManagementLock, !!s.multiThumbprintKdmScreen, seating, s.coolingType || null,
       !!s.wheelchairAccessibility, !!s.motionSeats, s.closureNotes || null,
       JSON.stringify((s.operators ?? []).filter((o) => o && (o.name || o.email || o.phone))),

@@ -2,10 +2,13 @@
 import { useState } from "react";
 import { Screen } from "@/types";
 import { toast } from "sonner";
+import { normalizeScreenNumber, screenIdentityErrors, screenLabel } from "@/data/screenRules";
 
 interface UseScreenFormProps {
   initialData?: Screen;
   theatreId: string;
+  /** The theatre's other screens, which this one's number and name must not repeat. */
+  otherScreens?: Screen[];
   onSave: (screen: Partial<Screen>) => void;
   onOpenChange: (open: boolean) => void;
 }
@@ -13,6 +16,7 @@ interface UseScreenFormProps {
 export const useScreenForm = ({ 
   initialData,
   theatreId,
+  otherScreens = [],
   onSave,
   onOpenChange
 }: UseScreenFormProps) => {
@@ -75,16 +79,25 @@ export const useScreenForm = ({
     initialData?.thirdPartyId ? initialData.thirdPartyId.split(':')[1] || "" : ""
   );
   
+  const [submitted, setSubmitted] = useState(false);
+  const identityErrors = screenIdentityErrors(formData as Screen, otherScreens);
+  // "Enter a number or a name" waits for a save attempt; format and duplicate problems show as you type
+  const errors = submitted ? identityErrors : { number: identityErrors.number, name: formData.name?.trim() ? identityErrors.name : undefined };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.number || !formData.name) {
-      toast.error("Please fill in all required fields");
+    const problem = identityErrors.number ?? identityErrors.name;
+    if (problem) {
+      setSubmitted(true);
+      toast.error(problem);
       return;
     }
     
     const updatedFormData = {
       ...formData,
+      number: normalizeScreenNumber(formData.number) ?? "",
+      name: formData.name?.trim() ?? "",
       thirdPartyId: thirdPartyDomain && thirdPartyValue 
         ? `${thirdPartyDomain}:${thirdPartyValue}` 
         : undefined
@@ -95,8 +108,8 @@ export const useScreenForm = ({
     
     toast.success(
       isEditing 
-        ? `Screen "${formData.name}" updated successfully` 
-        : `Screen "${formData.name}" created successfully`
+        ? `${screenLabel(updatedFormData)} updated` 
+        : `${screenLabel(updatedFormData)} added`
     );
   };
 
@@ -108,6 +121,7 @@ export const useScreenForm = ({
     thirdPartyValue,
     setThirdPartyValue,
     isEditing,
+    errors,
     handleSubmit
   };
 };
