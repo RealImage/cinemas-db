@@ -6,6 +6,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Screen } from "@/types";
 import { domainsList } from "../constants";
 import { ScreenFlags } from "../components/ScreenFlags";
+import { StatusReasonFields } from "../components/StatusReasonFields";
 
 interface GeneralTabProps {
   formData: Partial<Screen>;
@@ -14,7 +15,7 @@ interface GeneralTabProps {
   setThirdPartyDomain: React.Dispatch<React.SetStateAction<string>>;
   thirdPartyValue: string;
   setThirdPartyValue: React.Dispatch<React.SetStateAction<string>>;
-  errors: { number?: string; name?: string; imaxIntegrationType?: string };
+  errors: { number?: string; name?: string; imaxIntegrationType?: string; statusReason?: string };
 }
 
 export const GeneralTab = ({
@@ -28,10 +29,6 @@ export const GeneralTab = ({
 }: GeneralTabProps) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-  
-  const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
   
@@ -103,7 +100,10 @@ export const GeneralTab = ({
         <Label htmlFor="status">Status</Label>
         <Select
           value={formData.status || ""}
-          onValueChange={(value) => handleSelectChange("status", value)}
+          // Each status has its own reason list, so a new status starts without one
+          onValueChange={(value) => setFormData((prev) => ({
+            ...prev, status: value as Screen["status"], ...(value !== prev.status && { statusReasonId: null, statusComments: "" }),
+          }))}
         >
           <SelectTrigger id="status">
             <SelectValue placeholder="Select status" />
@@ -115,6 +115,14 @@ export const GeneralTab = ({
           </SelectContent>
         </Select>
       </div>
+
+      <StatusReasonFields
+        status={formData.status}
+        reasonId={formData.statusReasonId}
+        comments={formData.statusComments}
+        onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
+        error={errors.statusReason}
+      />
 
       <ScreenFlags formData={formData} setFormData={setFormData} error={errors.imaxIntegrationType} />
     </div>
