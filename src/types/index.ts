@@ -78,6 +78,14 @@ export type TemporaryClosure = {
   active: boolean;
 };
 
+/** Which reason list a screen status needs: deactivating and deleting each have their own. */
+export const SCREEN_STATUS_REASON_TYPES = { Inactive: "DEACTIVATE_SCREEN", Deleted: "DELETE_SCREEN" } as const;
+export type StatusReasonType = (typeof SCREEN_STATUS_REASON_TYPES)[keyof typeof SCREEN_STATUS_REASON_TYPES];
+export type StatusReason = { id: string; reasonType: StatusReasonType; reason: string };
+
+export const IMAX_INTEGRATION_TYPES = ["WireTAP", "TMS", "Both"] as const;
+export type ImaxIntegrationType = (typeof IMAX_INTEGRATION_TYPES)[number];
+
 export type Screen = {
   id: string;
   theatreId: string;
@@ -89,7 +97,16 @@ export type Screen = {
   autoScreenUpdateLock: boolean;
   flmManagementLock: boolean;
   multiThumbprintKdmScreen: boolean;
+  automation?: boolean;
+  imaxIntegrated?: boolean;
+  /** Required when imaxIntegrated. */
+  imaxIntegrationType?: ImaxIntegrationType | null;
   status: "Active" | "Inactive" | "Deleted";
+  /** Why an Inactive or Deleted screen is in that state (a status_reasons id); null while Active. */
+  statusReasonId?: string | null;
+  /** The reason's text, as returned by the API. */
+  statusReason?: string | null;
+  statusComments?: string | null;
   closureNotes?: string;
   seatingCapacity?: number;
   coolingType?: string;

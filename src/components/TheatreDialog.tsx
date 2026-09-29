@@ -30,6 +30,7 @@ import {
 import { IPSuitesTabContent } from "./theatres/ip-suites/IPSuitesTabContent";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { ScreenDialog } from "@/components/screens/ScreenDialog";
+import { DeleteScreenDialog } from "@/components/screens/DeleteScreenDialog";
 import { EditTheatreMappingDialog } from "./EditTheatreMappingDialog";
 import { 
   Plus, 
@@ -71,6 +72,7 @@ import { AddWireTAPToTheatreDialog } from "./theatres/AddWireTAPToTheatreDialog"
 import { PullOutDeviceDialog } from "./theatres/PullOutDeviceDialog";
 import { TimeSlotsEditor } from "./theatres/TimeSlotsEditor";
 import { contentTypeOptions } from "@/data/contentTypes";
+import { screenLabel } from "@/data/screenRules";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Eye, LogOut } from "lucide-react";
 import { FormActions } from "@/components/ui/form-actions";
@@ -363,6 +365,7 @@ export const TheatreDialog = ({
   const [screens, setScreens] = useState<Screen[]>(theatre?.screens || []);
   const [screenDialogOpen, setScreenDialogOpen] = useState(false);
   const [editingScreen, setEditingScreen] = useState<Screen | undefined>(undefined);
+  const [deletingScreen, setDeletingScreen] = useState<Screen | null>(null);
   const [mappingDialogOpen, setMappingDialogOpen] = useState(false);
   const [editingMapping, setEditingMapping] = useState<TheatreMapping | undefined>(undefined);
   const [saving, setSaving] = useState(false);
@@ -658,9 +661,20 @@ export const TheatreDialog = ({
     setScreenDialogOpen(true);
   };
   
+  // A saved screen is only marked Deleted, with a reason; one added in this session and never saved just goes
   const handleDeleteScreen = (screen: Screen) => {
+    if (theatre?.screens?.some((s) => s.id === screen.id)) {
+      setDeletingScreen(screen);
+      return;
+    }
     setScreens(screens.filter((s) => s.id !== screen.id));
-    toast.success(`Screen "${screen.name}" removed. Update the theatre to save the change.`);
+    toast.success(`${screenLabel(screen)} removed. Update the theatre to save the change.`);
+  };
+
+  const handleMarkScreenDeleted = (patch: Pick<Screen, "status" | "statusReasonId" | "statusComments">) => {
+    if (!deletingScreen) return;
+    setScreens(screens.map((s) => (s.id === deletingScreen.id ? { ...s, ...patch } : s)));
+    toast.success(`${screenLabel(deletingScreen)} marked Deleted. Update the theatre to save the change.`);
   };
   
   const handleSaveScreen = (screenData: Partial<Screen>) => {
@@ -2167,9 +2181,16 @@ export const TheatreDialog = ({
         onOpenChange={setScreenDialogOpen}
         theatreId={formData.id || ""}
         screen={editingScreen}
+        otherScreens={screens.filter((s) => s.id !== editingScreen?.id)}
         onSave={handleSaveScreen}
       />
       
+      <DeleteScreenDialog
+        screen={deletingScreen}
+        onOpenChange={(open) => !open && setDeletingScreen(null)}
+        onDelete={handleMarkScreenDeleted}
+      />
+
       {editingMapping && (
         <EditTheatreMappingDialog
           open={mappingDialogOpen}

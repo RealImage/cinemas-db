@@ -87,15 +87,6 @@ export const SoundTab = ({
         </div>
       </div>
       
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="iabSupported"
-          checked={formData.sound?.iabSupported || false}
-          onCheckedChange={(checked) => handleSoundChange("iabSupported", !!checked)}
-        />
-        <Label htmlFor="iabSupported">IAB Supported</Label>
-      </div>
-
       <div className="space-y-2">
         <Label>Audio Experience</Label>
         <div className="flex flex-wrap gap-4">
