@@ -30,7 +30,7 @@ approvals.get("/summary", async (c) => {
       (SELECT count(*) FROM theatres WHERE status <> 'Deleted' AND chain_id IS NULL) AS no_chain,
       -- Theatres can be created without a location; these rows count the ones still to complete
       (SELECT count(*) FROM theatres WHERE status <> 'Deleted' AND (coalesce(trim(address), '') = ''
-         OR coalesce(city, '') = '' OR coalesce(state, '') = '' OR coalesce(country, '') = '')) AS missing_location_fields,
+         OR coalesce(trim(city), '') = '' OR coalesce(trim(state), '') = '' OR coalesce(trim(country), '') = '')) AS missing_location_fields,
       (SELECT coalesce(sum(n), 0) FROM (SELECT count(*) AS n FROM theatres WHERE status <> 'Deleted'
          GROUP BY lower(trim(name)), lower(coalesce(city, '')) HAVING count(*) > 1) x) AS duplicates,
       (SELECT count(*) FROM (SELECT DISTINCT lower(d.manufacturer), lower(d.model) FROM screen_devices d
