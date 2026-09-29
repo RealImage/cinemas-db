@@ -61,14 +61,14 @@ export function ScreenFlags({ formData, setFormData, error }: {
                 value={formData.imaxIntegrationType ?? ""}
                 onValueChange={(v) => set({ imaxIntegrationType: v as ImaxIntegrationType })}
               >
-                <SelectTrigger id="imaxIntegrationType" aria-invalid={!!error}>
+                <SelectTrigger id="imaxIntegrationType" aria-invalid={!!error} aria-describedby={error ? "imaxIntegrationType-error" : undefined}>
                   <SelectValue placeholder="Select integration type" />
                 </SelectTrigger>
                 <SelectContent>
                   {IMAX_INTEGRATION_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {error && <p className="text-xs text-red-500">{error}</p>}
+              {error && <p id="imaxIntegrationType-error" className="text-xs text-red-500">{error}</p>}
             </div>
           )}
         </div>
