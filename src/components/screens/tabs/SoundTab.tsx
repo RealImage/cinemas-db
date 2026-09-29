@@ -3,8 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Screen } from "@/types";
-import { soundMixOptions } from "../constants";
-import { audioExperiences } from "@/data/screenExperienceData";
+import { audioExperiences, soundMixes } from "@/data/screenExperienceData";
 
 interface SoundTabProps {
   formData: Partial<Screen>;
@@ -46,6 +45,10 @@ export const SoundTab = ({
     });
   };
   
+  const storedMixes = formData.sound?.soundMixes || [];
+  // A stored mix missing from the list stays selectable so it still shows as checked.
+  const mixOptions: string[] = [...soundMixes, ...storedMixes.filter((m) => !(soundMixes as readonly string[]).includes(m))];
+
   return (
     <div className="mt-4 space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -72,15 +75,15 @@ export const SoundTab = ({
       <div className="space-y-2">
         <Label>Sound Mixes</Label>
         <div className="flex flex-wrap gap-2">
-          {soundMixOptions.map((mix) => (
-            <div key={mix.id} className="flex items-center space-x-2">
+          {mixOptions.map((mix) => (
+            <div key={mix} className="flex items-center space-x-2">
               <Checkbox
-                id={`sound-mix-${mix.id}`}
-                checked={(formData.sound?.soundMixes || []).includes(mix.id)}
-                onCheckedChange={(checked) => handleSoundMixChange(mix.id)}
+                id={`sound-mix-${mix}`}
+                checked={storedMixes.includes(mix)}
+                onCheckedChange={() => handleSoundMixChange(mix)}
               />
-              <Label htmlFor={`sound-mix-${mix.id}`} className="text-sm">
-                {mix.label}
+              <Label htmlFor={`sound-mix-${mix}`} className="text-sm">
+                {mix}
               </Label>
             </div>
           ))}
