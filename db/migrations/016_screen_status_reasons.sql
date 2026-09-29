@@ -24,5 +24,15 @@ INSERT INTO status_reasons (id, reason_type, reason, sort_order, updated_by) VAL
 
 ALTER TABLE screens
   ADD COLUMN status_reason_id text REFERENCES status_reasons(id),
-  ADD COLUMN status_comments  text,
+  ADD COLUMN status_comments  text;
+
+UPDATE screens
+SET status_reason_id = CASE status
+  WHEN 'Inactive' THEN 'deactivate-other'
+  WHEN 'Closed' THEN 'delete-closed'
+  ELSE 'delete-other'
+END
+WHERE status <> 'Active';
+
+ALTER TABLE screens
   ADD CONSTRAINT screens_status_reason CHECK ((status = 'Active') = (status_reason_id IS NULL));
