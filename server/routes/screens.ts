@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type pg from "pg";
 import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
-import { IMAX_INTEGRATION_TYPES, type IPAddress, type Screen, type ScreenDevice, type Suite, type TemporaryClosure } from "../../src/types";
+import { IMAX_INTEGRATION_TYPES, SCREEN_STATUS_REASON_TYPES, type IPAddress, type Screen, type ScreenDevice, type StatusReason, type Suite, type TemporaryClosure } from "../../src/types";
 import { normalizeScreenNumber, screenIdentityErrors } from "../../src/data/screenRules";
 
 export const screens = new Hono();
@@ -18,6 +18,8 @@ export const SCREEN_JSON = `json_build_object(
   'autoScreenUpdateLock', s.auto_screen_update_lock, 'flmManagementLock', s.flm_management_lock,
   'multiThumbprintKdmScreen', s.multi_thumbprint_kdm_screen, 'automation', s.automation,
   'imaxIntegrated', s.imax_integrated, 'imaxIntegrationType', s.imax_integration_type, 'status', s.status,
+  'statusReasonId', s.status_reason_id, 'statusComments', s.status_comments,
+  'statusReason', (SELECT r.reason FROM status_reasons r WHERE r.id = s.status_reason_id),
   'closureNotes', s.closure_notes, 'seatingCapacity', s.seating_capacity, 'coolingType', s.cooling_type,
   'wheelchairAccessibility', s.wheelchair_accessibility, 'motionSeats', s.motion_seats,
   'dimensions', s.dimensions, 'projection', s.projection,
@@ -155,6 +157,17 @@ export async function saveScreen(client: pg.PoolClient, theatreId: string, s: Pa
   if (errors.number || errors.name) throw httpError(400, (errors.number ?? errors.name)!);
   const number = normalizeScreenNumber(s.number) || null;
   const name = typeof s.name === "string" && s.name.trim() ? s.name.trim() : null;
+  // Inactive and Deleted need a reason of the matching type; an Active screen keeps none
+  const reasonType = status === "Active" ? null : SCREEN_STATUS_REASON_TYPES[status as "Inactive" | "Deleted"];
+  const reasonId = reasonType ? s.statusReasonId || null : null;
+  if (reasonType) {
+    const verb = status === "Inactive" ? "deactivating" : "deleting";
+    if (!reasonId) throw httpError(400, `Choose a reason for ${verb} the screen`);
+    const { rows: [reason] } = await client.query<{ reason_type: string }>(
+      "SELECT reason_type FROM status_reasons WHERE id = $1", [reasonId]);
+    if (!reason || reason.reason_type !== reasonType) throw httpError(400, `That isn't a reason for ${verb} a screen`);
+  }
+  const comments = reasonType && typeof s.statusComments === "string" && s.statusComments.trim() ? s.statusComments.trim() : null;
   const imaxIntegrated = !!s.imaxIntegrated;
   const imaxType = imaxIntegrated ? s.imaxIntegrationType ?? null : null;
   if (imaxIntegrated && !IMAX_INTEGRATION_TYPES.includes(imaxType as never)) {
@@ -167,9 +180,10 @@ export async function saveScreen(client: pg.PoolClient, theatreId: string, s: Pa
     `INSERT INTO screens (id, theatre_id, number, name, uuid, third_party_id, status, auto_screen_update_lock,
                           flm_management_lock, multi_thumbprint_kdm_screen, seating_capacity, cooling_type,
                           wheelchair_accessibility, motion_seats, closure_notes, operators, dimensions, projection,
-                          sound, automation, imax_integrated, imax_integration_type, created_by, updated_by)
+                          sound, automation, imax_integrated, imax_integration_type, status_reason_id, status_comments,
+                          created_by, updated_by)
      VALUES (coalesce($1, gen_random_uuid()::text), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-             $16, $17, $18, $19, $21, $22, $23, $20, $20)
+             $16, $17, $18, $19, $21, $22, $23, $24, $25, $20, $20)
      ON CONFLICT (id) DO UPDATE SET number = EXCLUDED.number, name = EXCLUDED.name, uuid = EXCLUDED.uuid,
        third_party_id = EXCLUDED.third_party_id, status = EXCLUDED.status,
        auto_screen_update_lock = EXCLUDED.auto_screen_update_lock, flm_management_lock = EXCLUDED.flm_management_lock,
@@ -178,7 +192,8 @@ export async function saveScreen(client: pg.PoolClient, theatreId: string, s: Pa
        motion_seats = EXCLUDED.motion_seats, closure_notes = EXCLUDED.closure_notes, operators = EXCLUDED.operators,
        dimensions = EXCLUDED.dimensions, projection = EXCLUDED.projection, sound = EXCLUDED.sound,
        automation = EXCLUDED.automation, imax_integrated = EXCLUDED.imax_integrated,
-       imax_integration_type = EXCLUDED.imax_integration_type, updated_by = EXCLUDED.updated_by
+       imax_integration_type = EXCLUDED.imax_integration_type, status_reason_id = EXCLUDED.status_reason_id,
+       status_comments = EXCLUDED.status_comments, updated_by = EXCLUDED.updated_by
      WHERE screens.theatre_id = EXCLUDED.theatre_id
      RETURNING id`,
     [s.id || null, theatreId, number, name, s.uuid || null, s.thirdPartyId || null, status,
@@ -186,7 +201,7 @@ export async function saveScreen(client: pg.PoolClient, theatreId: string, s: Pa
       !!s.wheelchairAccessibility, !!s.motionSeats, s.closureNotes || null,
       JSON.stringify((s.operators ?? []).filter((o) => o && (o.name || o.email || o.phone))),
       JSON.stringify(s.dimensions ?? {}), JSON.stringify(s.projection ?? {}), JSON.stringify(s.sound ?? {}), CURRENT_USER,
-      !!s.automation, imaxIntegrated, imaxType],
+      !!s.automation, imaxIntegrated, imaxType, reasonId, comments],
   );
   if (rows.length === 0) throw httpError(409, `Screen ${s.id} belongs to another theatre`);
   const screenId = rows[0].id;
@@ -215,6 +230,10 @@ export async function loadScreen(id: string) {
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
+
+/** Reasons for deactivating and deleting a screen, in display order. */
+screens.get("/status-reasons", async (c) => c.json(await query<StatusReason>(
+  `SELECT id, reason_type AS "reasonType", reason FROM status_reasons ORDER BY reason_type, sort_order, reason`)));
 
 screens.get("/:id", async (c) => {
   const screen = await loadScreen(c.req.param("id"));
