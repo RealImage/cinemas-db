@@ -106,6 +106,10 @@ export const EditDeviceDialog = ({ open, onOpenChange, device, onSave }: EditDev
       }
     }
 
+    if (formData.subnetMask && !isIPv4(formData.subnetMask)) {
+      newErrors.subnetMask = "Enter the subnet mask as an IPv4 address, e.g. 255.255.255.0";
+    }
+
     if (formData.gateway && !isIPv4(formData.gateway)) {
       newErrors.gateway = "Enter the gateway as an IPv4 address";
     }
