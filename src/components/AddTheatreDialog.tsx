@@ -37,7 +37,8 @@ export const AddTheatreDialog = ({
     e.preventDefault();
     
     // Basic validation
-    if (!formData.name || !formData.displayName || !formData.address) {
+    // The location can be completed later; Approvals & Conflicts counts theatres still missing it
+    if (!formData.name || !formData.displayName) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -97,15 +98,15 @@ export const AddTheatreDialog = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="address">Theatre Address *</Label>
+              <Label htmlFor="address">Theatre Address</Label>
               <Input
                 id="address"
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
-                required
                 placeholder="123 Main St, City, State, Country"
               />
+              <p className="text-xs text-muted-foreground">Optional. You can add the location and coordinates later.</p>
             </div>
           </div>
           
