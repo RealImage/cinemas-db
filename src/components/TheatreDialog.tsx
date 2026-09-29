@@ -71,6 +71,7 @@ import { AddWireTAPToTheatreDialog } from "./theatres/AddWireTAPToTheatreDialog"
 import { PullOutDeviceDialog } from "./theatres/PullOutDeviceDialog";
 import { TimeSlotsEditor } from "./theatres/TimeSlotsEditor";
 import { contentTypeOptions } from "@/data/contentTypes";
+import { screenLabel } from "@/data/screenRules";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Eye, LogOut } from "lucide-react";
 import { FormActions } from "@/components/ui/form-actions";
@@ -660,7 +661,7 @@ export const TheatreDialog = ({
   
   const handleDeleteScreen = (screen: Screen) => {
     setScreens(screens.filter((s) => s.id !== screen.id));
-    toast.success(`Screen "${screen.name}" removed. Update the theatre to save the change.`);
+    toast.success(`${screenLabel(screen)} removed. Update the theatre to save the change.`);
   };
   
   const handleSaveScreen = (screenData: Partial<Screen>) => {
@@ -2166,6 +2167,7 @@ export const TheatreDialog = ({
         onOpenChange={setScreenDialogOpen}
         theatreId={formData.id || ""}
         screen={editingScreen}
+        otherScreens={screens.filter((s) => s.id !== editingScreen?.id)}
         onSave={handleSaveScreen}
       />
       

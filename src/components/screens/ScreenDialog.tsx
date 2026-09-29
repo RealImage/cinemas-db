@@ -9,6 +9,8 @@ interface ScreenDialogProps {
   onOpenChange: (open: boolean) => void;
   theatreId: string;
   screen?: Screen;
+  /** The theatre's other screens, which this one's number and name must not repeat. */
+  otherScreens?: Screen[];
   onSave: (screen: Partial<Screen>) => void;
 }
 
@@ -17,6 +19,7 @@ export const ScreenDialog = ({
   onOpenChange,
   theatreId,
   screen,
+  otherScreens,
   onSave,
 }: ScreenDialogProps) => {
   const {
@@ -27,10 +30,12 @@ export const ScreenDialog = ({
     thirdPartyValue,
     setThirdPartyValue,
     isEditing,
+    errors,
     handleSubmit
   } = useScreenForm({
     initialData: screen,
     theatreId,
+    otherScreens,
     onSave,
     onOpenChange
   });
@@ -57,6 +62,7 @@ export const ScreenDialog = ({
             setThirdPartyValue={setThirdPartyValue}
             onSubmit={handleSubmit}
             isEditing={isEditing}
+            errors={errors}
           />
         </div>
       </DialogContent>

@@ -13,6 +13,7 @@ interface GeneralTabProps {
   setThirdPartyDomain: React.Dispatch<React.SetStateAction<string>>;
   thirdPartyValue: string;
   setThirdPartyValue: React.Dispatch<React.SetStateAction<string>>;
+  errors: { number?: string; name?: string };
 }
 
 export const GeneralTab = ({
@@ -22,6 +23,7 @@ export const GeneralTab = ({
   setThirdPartyDomain,
   thirdPartyValue,
   setThirdPartyValue,
+  errors,
 }: GeneralTabProps) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -34,16 +36,22 @@ export const GeneralTab = ({
   
   return (
     <div className="mt-4 space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Enter a screen number, a screen name, or both. Neither can repeat another screen in this theatre.
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="number">Screen Number</Label>
           <Input
             id="number"
             name="number"
+            inputMode="numeric"
             value={formData.number || ""}
             onChange={handleChange}
-            required
+            aria-invalid={!!errors.number}
+            aria-describedby={errors.number ? "number-error" : undefined}
           />
+          {errors.number && <p id="number-error" className="text-xs text-red-500">{errors.number}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor="name">Screen Name</Label>
@@ -52,8 +60,10 @@ export const GeneralTab = ({
             name="name"
             value={formData.name || ""}
             onChange={handleChange}
-            required
+            aria-invalid={!!errors.name}
+            aria-describedby={errors.name ? "name-error" : undefined}
           />
+          {errors.name && <p id="name-error" className="text-xs text-red-500">{errors.name}</p>}
         </div>
       </div>
       

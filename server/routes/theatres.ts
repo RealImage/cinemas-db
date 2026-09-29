@@ -3,6 +3,7 @@ import type pg from "pg";
 import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
 import { SCREEN_JSON, SCREEN_ORDER, saveScreen } from "./screens";
+import { screenListError } from "../../src/data/screenRules";
 import { SYSTEM_NAME, theatreSystemName } from "../theatreSystems";
 import { configurationsFor } from "./wtf";
 import { LIVE_WIRE_AGENT, type ConfigFieldDef } from "../../src/data/agentConfigData";
@@ -301,6 +302,8 @@ async function applyTheatre(client: pg.PoolClient, id: string, body: TheatreInpu
 
   if (body.screens !== undefined) {
     if (!Array.isArray(body.screens)) throw httpError(400, "screens must be an array");
+    const duplicate = screenListError(body.screens as Screen[]);
+    if (duplicate) throw httpError(400, duplicate);
     const kept: string[] = [];
     for (const screen of body.screens as Screen[]) kept.push(await saveScreen(client, id, screen));
     await client.query("DELETE FROM screens WHERE theatre_id = $1 AND NOT (id = ANY($2))", [id, kept]);

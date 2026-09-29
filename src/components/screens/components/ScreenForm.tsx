@@ -22,6 +22,7 @@ interface ScreenFormProps {
   setThirdPartyValue: React.Dispatch<React.SetStateAction<string>>;
   onSubmit: (e: React.FormEvent) => void;
   isEditing: boolean;
+  errors: { number?: string; name?: string };
 }
 
 export const ScreenForm = ({
@@ -33,6 +34,7 @@ export const ScreenForm = ({
   setThirdPartyValue,
   onSubmit,
   isEditing,
+  errors,
 }: ScreenFormProps) => {
   return (
     <form onSubmit={onSubmit} className="flex flex-col h-full overflow-hidden">
@@ -59,6 +61,7 @@ export const ScreenForm = ({
               setThirdPartyDomain={setThirdPartyDomain}
               thirdPartyValue={thirdPartyValue}
               setThirdPartyValue={setThirdPartyValue}
+              errors={errors}
             />
           </TabsContent>
           
