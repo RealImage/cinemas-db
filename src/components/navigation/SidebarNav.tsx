@@ -52,10 +52,6 @@ export const SidebarNav = ({
     label: "FLM Feeds",
     path: "/theatres/flm-feeds",
     icon: FileText
-  }, {
-    label: "Dashboard",
-    path: "/theatres/dashboard",
-    icon: LayoutDashboard
   }];
   const chainsNavItems = [{
     icon: <LinkIcon size={20} />,
