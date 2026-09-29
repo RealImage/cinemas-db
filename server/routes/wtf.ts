@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { query } from "../db";
 import { notFound } from "../http";
+import { theatreSystemName } from "../theatreSystems";
 import { CREDENTIAL_COLUMNS, type CredentialRow, toCredential } from "./credentials";
 import { CONFIG_COLUMNS, type ConfigRow, toConfiguration } from "./agentConfigs";
 import { GLOBAL_REF, type CredentialFieldDef } from "../../src/data/credentialsManagerData";
@@ -21,7 +22,8 @@ wtf.get("/:theatreId", async (c) => {
     delivery: Record<string, unknown>;
   }>(
     `SELECT t.id, t.uuid, t.name, t.alternate_names, t.city, t.state, t.country, c.name AS chain_name,
-            t.theatre_management_system AS tms, t.ticketing_system AS ticketing, t.delivery_settings AS delivery
+            ${theatreSystemName("TMS")} AS tms, ${theatreSystemName("Ticketing System")} AS ticketing,
+            t.delivery_settings AS delivery
      FROM theatres t LEFT JOIN chains c ON c.id = t.chain_id WHERE t.id = $1 AND t.status <> 'Deleted'`,
     [c.req.param("theatreId")],
   );

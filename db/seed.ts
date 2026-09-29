@@ -150,8 +150,6 @@ class Seeder {
       bike_parking_capacity: t.bikeParkingCapacity ?? null,
       car_parking_available: t.carParkingAvailable ?? null,
       car_parking_capacity: t.carParkingCapacity ?? null,
-      theatre_management_system: t.theatreManagementSystem ?? null,
-      ticketing_system: t.ticketingSystem ?? null,
       start_date: t.startDate ?? null,
       notes: t.notes ?? null,
       closure_details: t.closureDetails ?? null,

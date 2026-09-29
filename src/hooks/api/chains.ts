@@ -13,3 +13,15 @@ export const useDeleteChain = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: chainKeys.all }),
   });
 };
+
+/** Replace the TMSes a chain's theatres may use. */
+export const useSetChainTms = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, deviceIds }: { id: string; deviceIds: string[] }) => api.put<Chain>(`/chains/${id}/tms`, { deviceIds }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: chainKeys.all });
+      qc.invalidateQueries({ queryKey: ["theatres", "systems"] });
+    },
+  });
+};

@@ -3,13 +3,16 @@ import type pg from "pg";
 import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
 import { SCREEN_JSON, SCREEN_ORDER, saveScreen } from "./screens";
-import { THEATRE_LISTINGS, type Company, type DashboardStats, type Screen, type Theatre, type TheatreMapping } from "../../src/types";
+import { SYSTEM_NAME, theatreSystemName } from "../theatreSystems";
+import {
+  THEATRE_LISTINGS, type Company, type DashboardStats, type Screen, type Theatre, type TheatreMapping, type TheatreSystemOptions,
+} from "../../src/types";
+import type { WireTAPDevice } from "../../src/types/wireTAP";
+import { formatTheatreAddress, theatreAlternateNames, type TheatreSummary } from "../../src/data/theatreSummary";
 import {
   LISTING_NOT_SET, isTheatreSearchMode, isTheatreTagKind, searchTokens,
   type TheatreFacets, type TheatrePage, type TheatreSearchHit, type TheatreSearchMode, type TheatreTagKind,
 } from "../../src/data/theatreSearch";
-import type { WireTAPDevice } from "../../src/types/wireTAP";
-import { formatTheatreAddress, theatreAlternateNames, type TheatreSummary } from "../../src/data/theatreSummary";
 
 export const theatres = new Hono();
 
@@ -26,6 +29,12 @@ const DELIVERY_KEYS = [
   "liveWireEnabled", "liveWireConfig",
 ] as const;
 
+/** A theatre's TMS and ticketing system (from the Credentials Manager): id and name of each. */
+const SYSTEM_COLUMNS = ([["TMS", "tmsId", "theatreManagementSystem"], ["Ticketing System", "ticketingSystemId", "ticketingSystem"]] as const)
+  .map(([kind, idKey, nameKey]) => `
+  (SELECT s.device_id FROM theatre_systems s WHERE s.theatre_id = t.id AND s.kind = '${kind}') AS "${idKey}",
+  ${theatreSystemName(kind)} AS "${nameKey}"`).join(",");
+
 const THEATRE_COLUMNS = `
   t.id, t.code, coalesce(t.name, '') AS name, coalesce(t.display_name, '') AS "displayName",
   t.alternate_names AS "alternateNames", coalesce(t.uuid, '') AS uuid, t.third_party_id AS "thirdPartyId",
@@ -39,7 +48,7 @@ const THEATRE_COLUMNS = `
   t.latitude, t.longitude, t.location_type AS "locationType",
   t.bike_parking_available AS "bikeParkingAvailable", t.bike_parking_capacity AS "bikeParkingCapacity",
   t.car_parking_available AS "carParkingAvailable", t.car_parking_capacity AS "carParkingCapacity",
-  t.theatre_management_system AS "theatreManagementSystem", t.ticketing_system AS "ticketingSystem",
+  ${SYSTEM_COLUMNS},
   t.start_date AS "startDate", t.contact, t.configuration_notes AS "configurationNotes",
   t.delivery_settings AS "deliverySettings",
   t.created_at AS "createdAt", t.updated_at AS "updatedAt", t.created_by AS "createdBy", t.updated_by AS "updatedBy",
@@ -109,8 +118,6 @@ const SCALAR_FIELDS: Record<string, [column: string, convert?: (v: unknown) => u
   bikeParkingCapacity: ["bike_parking_capacity", (v) => (v === "" || v == null ? null : Number(v))],
   carParkingAvailable: ["car_parking_available", (v) => (v == null ? null : !!v)],
   carParkingCapacity: ["car_parking_capacity", (v) => (v === "" || v == null ? null : Number(v))],
-  theatreManagementSystem: ["theatre_management_system"],
-  ticketingSystem: ["ticketing_system"],
   startDate: ["start_date"],
   contact: ["contact"],
   configurationNotes: ["configuration_notes"],
@@ -286,12 +293,44 @@ async function applyTheatre(client: pg.PoolClient, id: string, body: TheatreInpu
   await client.query(`UPDATE theatres SET ${sets.join(", ")} WHERE id = $1`, params);
 
   if (body.theatreMappings !== undefined) await saveMappings(client, id, body.theatreMappings);
+  await saveSystems(client, id, body);
 
   if (body.screens !== undefined) {
     if (!Array.isArray(body.screens)) throw httpError(400, "screens must be an array");
     const kept: string[] = [];
     for (const screen of body.screens as Screen[]) kept.push(await saveScreen(client, id, screen));
     await client.query("DELETE FROM screens WHERE theatre_id = $1 AND NOT (id = ANY($2))", [id, kept]);
+  }
+}
+
+/**
+ * The theatre's TMS (`tmsId`) and ticketing system (`ticketingSystemId`), from the Credentials Manager; blank
+ * clears one. A newly chosen TMS must be linked to the theatre's chain, so a wrong TMS can't be mapped.
+ */
+async function saveSystems(client: pg.PoolClient, theatreId: string, body: TheatreInput) {
+  for (const [key, kind] of [["tmsId", "TMS"], ["ticketingSystemId", "Ticketing System"]] as const) {
+    if (!(key in body)) continue;
+    const deviceId = blankToNull(body[key]) as string | null;
+    if (!deviceId) {
+      await client.query("DELETE FROM theatre_systems WHERE theatre_id = $1 AND kind = $2", [theatreId, kind]);
+      continue;
+    }
+    const { rows: [current] } = await client.query<{ device_id: string }>(
+      "SELECT device_id FROM theatre_systems WHERE theatre_id = $1 AND kind = $2 FOR UPDATE", [theatreId, kind]);
+    if (current?.device_id === deviceId) continue;
+    const { rows: [device] } = await client.query<{ name: string }>(
+      `SELECT ${SYSTEM_NAME} AS name FROM credential_devices d WHERE d.id = $1 AND d.type = $2 FOR SHARE`, [deviceId, kind]);
+    if (!device) throw httpError(400, `${deviceId} isn't a ${kind} in the Credentials Manager`);
+    if (kind === "TMS") {
+      const { rows: [link] } = await client.query<{ chain: string | null; linked: boolean }>(
+        `SELECT c.name AS chain, EXISTS (SELECT 1 FROM chain_tms x WHERE x.chain_id = t.chain_id AND x.device_id = $2) AS linked
+         FROM theatres t LEFT JOIN chains c ON c.id = t.chain_id WHERE t.id = $1`, [theatreId, deviceId]);
+      if (!link.chain) throw httpError(400, "Choose the theatre's chain before its TMS");
+      if (!link.linked) throw httpError(400, `${device.name} isn't linked to ${link.chain}. Add it to the chain first.`);
+    }
+    await client.query(
+      `INSERT INTO theatre_systems (theatre_id, kind, device_id) VALUES ($1, $2, $3)
+       ON CONFLICT (theatre_id, kind) DO UPDATE SET device_id = excluded.device_id`, [theatreId, kind, deviceId]);
   }
 }
 
@@ -309,6 +348,24 @@ theatres.get("/", async (c) => {
      WHERE t.status <> 'Deleted' ORDER BY lower(t.name), t.id`,
   );
   return c.json(rows.map(toTheatre));
+});
+
+/**
+ * Choices for the theatre form's TMS and Ticketing System dropdowns: the TMSes linked to `chainId` (none without
+ * a chain) and every ticketing system.
+ */
+theatres.get("/systems", async (c) => {
+  const chainId = c.req.query("chainId") || null;
+  const rows = await query<{ kind: "TMS" | "Ticketing System"; id: string; name: string }>(
+    `SELECT d.type AS kind, d.id, ${SYSTEM_NAME} AS name FROM credential_devices d
+     WHERE d.type = 'Ticketing System'
+        OR (d.type = 'TMS' AND EXISTS (SELECT 1 FROM chain_tms x WHERE x.device_id = d.id AND x.chain_id = $1))
+     ORDER BY lower(d.brand), lower(d.model)`, [chainId]);
+  const options: TheatreSystemOptions = {
+    tms: rows.filter((r) => r.kind === "TMS").map(({ id, name }) => ({ id, name })),
+    ticketing: rows.filter((r) => r.kind === "Ticketing System").map(({ id, name }) => ({ id, name })),
+  };
+  return c.json(options);
 });
 
 /** Companies for the theatre form's company picker. */

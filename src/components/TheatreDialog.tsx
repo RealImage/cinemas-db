@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { LocationPicker } from "@/components/locations/LocationPicker";
 import type { City } from "@/data/locationsData";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { TheatreSystemsFields } from "@/components/theatres/TheatreSystemsFields";
 import { 
   Screen, 
   Theatre, 
@@ -379,6 +380,10 @@ export const TheatreDialog = ({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
   
+  const handleSystemChange = useCallback((key: "tmsId" | "ticketingSystemId", value: string | null) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -1228,26 +1233,15 @@ export const TheatreDialog = ({
                   <h3 className="text-lg font-medium">System Information</h3>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="theatreManagementSystem">Theatre Management System</Label>
-                    <Input
-                      id="theatreManagementSystem"
-                      name="theatreManagementSystem"
-                      value={formData.theatreManagementSystem || ""}
-                      onChange={handleChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ticketingSystem">Ticketing System</Label>
-                    <Input
-                      id="ticketingSystem"
-                      name="ticketingSystem"
-                      value={formData.ticketingSystem || ""}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </div>
+                <TheatreSystemsFields
+                  chainId={formData.chainId}
+                  chainName={formData.chainName}
+                  tmsId={formData.tmsId}
+                  tmsName={formData.theatreManagementSystem}
+                  ticketingSystemId={formData.ticketingSystemId}
+                  ticketingSystemName={formData.ticketingSystem}
+                  onChange={handleSystemChange}
+                />
               </div>
             </TabsContent>
             
