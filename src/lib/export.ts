@@ -19,7 +19,9 @@ const MIME: Record<ExportFormat, string> = {
 /** RFC 4180 CSV (CRLF line ends, fields quoted when needed), with a UTF-8 BOM so Excel reads accents correctly. */
 export function toCsv({ headers, rows }: ExportTable): string {
   const field = (v: ExportCell) => {
-    const s = v == null ? "" : String(v);
+    // Text that a spreadsheet would run as a formula gets a leading apostrophe; real numbers are left alone
+    const raw = v == null ? "" : String(v);
+    const s = typeof v === "string" && /^[=+\-@\t\r]/.test(raw) && !/^-?\d/.test(raw) ? `'${raw}` : raw;
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return "﻿" + [headers, ...rows].map((r) => r.map(field).join(",")).join("\r\n") + "\r\n";
