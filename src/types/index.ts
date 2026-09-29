@@ -1,3 +1,9 @@
+/** Choices for the theatre form's TMS and Ticketing System dropdowns (GET /api/theatres/systems). */
+export interface TheatreSystemOptions {
+  tms?: { id: string; name: string }[];
+  ticketing: { id: string; name: string }[];
+}
+
 /** How a theatre is listed: shown to everyone, only to its companies, or not at all. */
 export const THEATRE_LISTINGS = ["Listed - Public", "Listed - Private", "Unlisted"] as const;
 export type TheatreListing = (typeof THEATRE_LISTINGS)[number];
@@ -197,8 +203,14 @@ export type Theatre = {
   bikeParkingCapacity?: number;
   carParkingAvailable?: boolean;
   carParkingCapacity?: number;
-  theatreManagementSystem?: string;
-  ticketingSystem?: string;
+  /** Credentials Manager TMS entry; must be linked to the theatre's chain. */
+  tmsId?: string | null;
+  /** Read-only: the TMS's name. */
+  theatreManagementSystem?: string | null;
+  /** Credentials Manager Ticketing System entry. */
+  ticketingSystemId?: string | null;
+  /** Read-only: the ticketing system's name. */
+  ticketingSystem?: string | null;
   startDate?: string;
   contact?: string;
   deliveryAddress?: DeliveryAddress;
@@ -257,6 +269,8 @@ export type Chain = {
   status: string;
   createdAt: string;
   updatedAt: string;
+  /** TMSes (Credentials Manager) this chain's theatres may use. */
+  tms?: { id: string; name: string }[];
 };
 
 export type Company = {

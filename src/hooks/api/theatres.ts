@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Company, DashboardStats, Theatre } from "@/types";
+import type { Company, DashboardStats, Theatre, TheatreSystemOptions } from "@/types";
 import type { WireTAPDevice } from "@/types/wireTAP";
 import type { WtfData } from "@/data/wtfData";
 import type { TheatreFacets, TheatrePage, TheatreSearchMode, TheatreTag } from "@/data/theatreSearch";
@@ -15,6 +15,7 @@ export const theatreKeys = {
   stats: ["theatres", "stats"] as const,
   page: (query: string) => ["theatres", "page", query] as const,
   facets: ["theatres", "facets"] as const,
+  systems: (chainId: string) => ["theatres", "systems", chainId] as const,
 };
 
 export type TheatreLogEntry = {
@@ -62,6 +63,13 @@ export const useTheatrePage = (p: TheatrePageParams) => {
 
 export const useTheatreFacets = () =>
   useQuery({ queryKey: theatreKeys.facets, queryFn: () => api.get<TheatreFacets>("/theatres/facets") });
+
+/** TMS choices for a chain (only its linked TMSes) and every ticketing system. */
+export const useTheatreSystemOptions = (chainId: string | undefined) =>
+  useQuery({
+    queryKey: theatreKeys.systems(chainId ?? ""),
+    queryFn: () => api.get<TheatreSystemOptions>(`/theatres/systems?chainId=${encodeURIComponent(chainId ?? "")}`),
+  });
 
 export const useTheatre = (id: string | undefined) =>
   useQuery({
