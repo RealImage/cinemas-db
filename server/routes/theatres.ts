@@ -470,28 +470,43 @@ const SEARCH_SOURCES: Record<Exclude<TheatreSearchMode, "all">, string> = {
  */
 function rankedSearch(q: string, mode: TheatreSearchMode, params: unknown[]): string | null {
   const phrase = q.trim().toLowerCase().replace(/\s+/g, " ");
-  // Identifiers are matched whole; names and addresses token by token
-  const tokens = mode === "all" || mode === "theatre" ? searchTokens(phrase) : phrase ? [phrase] : [];
-  if (!tokens.length) return null;
-  params.push(tokens, phrase);
+  if (!phrase) return null;
+  params.push(searchTokens(phrase), phrase);
   const [$tokens, $phrase] = [`$${params.length - 1}`, `$${params.length}`];
-  const sources = mode === "all" ? Object.values(SEARCH_SOURCES).join("\n    UNION ALL ") : SEARCH_SOURCES[mode];
-  return `docs(theatre_id, label, value) AS (${sources}),
+  // Names and addresses match token by token; UUIDs, third-party IDs and serials only as the whole query, in every mode
+  const modes = mode === "all" ? (Object.keys(SEARCH_SOURCES) as (keyof typeof SEARCH_SOURCES)[]) : [mode];
+  const sources = modes
+    .map((m) => `SELECT theatre_id, label, value, ${m !== "theatre"} AS whole FROM (${SEARCH_SOURCES[m]}) src(theatre_id, label, value)`)
+    .join("\n    UNION ALL ");
+  return `docs(theatre_id, label, value, whole) AS (${sources}),
      hits AS (
        SELECT d.theatre_id, d.label, d.value, tok,
               lower(d.value) = ${$phrase} AS exact, strpos(lower(d.value), ${$phrase}) > 0 AS phrase
-       FROM docs d JOIN unnest(${$tokens}::text[]) tok ON strpos(lower(d.value), tok) > 0),
+       FROM docs d JOIN unnest(${$tokens}::text[]) tok ON NOT d.whole AND strpos(lower(d.value), tok) > 0
+       UNION ALL
+       SELECT d.theatre_id, d.label, d.value, ${$phrase}, lower(d.value) = ${$phrase}, true
+       FROM docs d WHERE d.whole AND strpos(lower(d.value), ${$phrase}) > 0),
      scored AS (
        SELECT theatre_id, sum(length(tok)) AS token_score
        FROM (SELECT DISTINCT theatre_id, tok FROM hits) x GROUP BY theatre_id),
+     -- The hit to show: exact, then whole-phrase, then longest-token matches first
      best AS (
-       SELECT DISTINCT ON (theatre_id) theatre_id, label, value, bool_or(exact) OVER w AS exact, bool_or(phrase) OVER w AS phrase
+       SELECT DISTINCT ON (theatre_id) theatre_id, label, value,
+              bool_or(exact) OVER w AS any_exact, bool_or(phrase) OVER w AS any_phrase
        FROM hits WINDOW w AS (PARTITION BY theatre_id)
        ORDER BY theatre_id, exact DESC, phrase DESC, length(tok) DESC, label = 'Name' DESC),
      ranked AS (
        SELECT s.theatre_id AS id, b.label AS matched_field, b.value AS matched_value,
-              (s.token_score + CASE WHEN b.exact THEN 2000 WHEN b.phrase THEN 1000 ELSE 0 END)::int AS score
+              (s.token_score + CASE WHEN b.any_exact THEN 2000 WHEN b.any_phrase THEN 1000 ELSE 0 END)::int AS score
        FROM scored s JOIN best b USING (theatre_id))`;
+}
+
+/** A positive whole-number query parameter, or `fallback` when it's absent. */
+function positiveInt(name: string, raw: string | undefined, fallback: number) {
+  if (raw === undefined || raw === "") return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1) throw httpError(400, `${name} must be a positive whole number`);
+  return n;
 }
 
 const searchMode = (v: string | undefined): TheatreSearchMode => {
@@ -546,8 +561,8 @@ const TAG_CONDITIONS: Record<TheatreTagKind, (v: string) => string> = {
  * and no sort, the best matches come first, and each row says what matched.
  */
 theatres.get("/page", async (c) => {
-  const page = Math.max(1, Number(c.req.query("page")) || 1);
-  const pageSize = Math.min(1000, Math.max(1, Number(c.req.query("pageSize")) || 100));
+  const page = positiveInt("page", c.req.query("page"), 1);
+  const pageSize = Math.min(1000, positiveInt("pageSize", c.req.query("pageSize"), 100));
   const params: unknown[] = [];
   const bind = (v: unknown) => { params.push(v); return `$${params.length}`; };
 
@@ -598,19 +613,19 @@ theatres.get("/facets", async (c) => {
   const [facets] = await query<TheatreFacets>(`
     WITH live AS (SELECT t.*, c.name AS chain_name, co.name AS company_name ${THEATRE_FROM} WHERE t.status <> 'Deleted'),
     tags AS (
-      SELECT 'chain' AS kind, chain_name AS value FROM live
-      UNION ALL SELECT 'city', city FROM live
-      UNION ALL SELECT 'province', state FROM live
-      UNION ALL SELECT 'country', country FROM live
-      UNION ALL SELECT 'owner', company_name FROM live
-      UNION ALL SELECT 'integrator', unnest(exhibitor_integrator_companies) FROM live
-      UNION ALL SELECT 'adIntegrator', unnest(ad_integrators) FROM live)
+      SELECT id, 'chain' AS kind, chain_name AS value FROM live
+      UNION ALL SELECT id, 'city', city FROM live
+      UNION ALL SELECT id, 'province', state FROM live
+      UNION ALL SELECT id, 'country', country FROM live
+      UNION ALL SELECT id, 'owner', company_name FROM live
+      UNION ALL SELECT id, 'integrator', unnest(exhibitor_integrator_companies) FROM live
+      UNION ALL SELECT id, 'adIntegrator', unnest(ad_integrators) FROM live)
     SELECT
       (SELECT coalesce(json_agg(DISTINCT status), '[]') FROM live) AS statuses,
       (SELECT coalesce(json_agg(DISTINCT chain_name) FILTER (WHERE chain_name <> ''), '[]') FROM live) AS chains,
       (SELECT coalesce(json_agg(DISTINCT company_name) FILTER (WHERE company_name <> ''), '[]') FROM live) AS companies,
       (SELECT coalesce(json_agg(json_build_object('kind', kind, 'value', value, 'count', n) ORDER BY kind, lower(value)), '[]')
-         FROM (SELECT kind, value, count(*)::int AS n FROM tags WHERE coalesce(value, '') <> '' GROUP BY 1, 2) x) AS tags`);
+         FROM (SELECT kind, value, count(DISTINCT id)::int AS n FROM tags WHERE coalesce(value, '') <> '' GROUP BY 1, 2) x) AS tags`);
   return c.json(facets);
 });
 

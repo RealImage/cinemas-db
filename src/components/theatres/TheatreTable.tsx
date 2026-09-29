@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import type { Filter, SortDirection } from "@/components/ui/data-table/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -41,7 +42,8 @@ export const TheatreTable = ({ onViewTheatre, onViewLogs, onViewWtf, onToggleSta
   const pageQuery = useTheatrePage({
     ...page, q: searchTerm, mode: searchMode, sort: sort.key, dir: sort.dir, filters, tags,
   });
-  const facets = useTheatreFacets().data;
+  const facetsQuery = useTheatreFacets();
+  const facets = facetsQuery.data;
 
   // Anything that changes which theatres match starts again from page 1
   const toFirstPage = () => setPage((p) => ({ ...p, page: 1 }));
@@ -79,9 +81,12 @@ export const TheatreTable = ({ onViewTheatre, onViewLogs, onViewWtf, onToggleSta
   return (
     <div className="space-y-2">
       {pageQuery.isError && (
-        <p className="flex items-center gap-2 text-sm text-red-500" role="alert">
-          <AlertTriangle className="h-4 w-4" /> Could not load theatres: {pageQuery.error.message}
-        </p>
+        <div className="flex items-center gap-3" role="alert">
+          <p className="flex items-center gap-2 text-sm text-red-500">
+            <AlertTriangle className="h-4 w-4" /> Could not load theatres: {pageQuery.error.message}
+          </p>
+          <Button variant="outline" size="sm" onClick={() => pageQuery.refetch()} loading={pageQuery.isFetching}>Retry</Button>
+        </div>
       )}
       <DataTable<TheatreListRow>
         data={pageQuery.data?.rows ?? []}
@@ -103,9 +108,18 @@ export const TheatreTable = ({ onViewTheatre, onViewLogs, onViewWtf, onToggleSta
           </Select>
         }
         subToolbar={
-          <TagChips tags={tags} facets={facets} onAdd={addTag} onRemove={removeTag} onClear={() => { setTags([]); toFirstPage(); }} />
+          <TagChips
+            tags={tags}
+            facets={facets}
+            facetsError={facetsQuery.isError ? facetsQuery.error.message : null}
+            onRetryFacets={() => facetsQuery.refetch()}
+            onAdd={addTag}
+            onRemove={removeTag}
+            onClear={() => { setTags([]); toFirstPage(); }}
+          />
         }
-        pageResetKey={`${searchMode}|${tags.map((t) => `${t.kind}:${t.value}`).join(",")}`}
+        // DataTable resets its own pager for search and column filters; these are the page's own changes
+        pageResetKey={`${searchMode}|${sort.key ?? ""}:${sort.dir ?? ""}|${tags.map((t) => `${t.kind}:${t.value}`).join(",")}`}
         actions={(row) =>
           getTheatreActions({
             theatre: row, onViewDetails: onViewTheatre, onViewLogs, onViewWtf,
