@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Combobox } from "@/components/ui/combobox";
 import { Switch } from "@/components/ui/switch";
 import { common } from "@/i18n/common";
+import { isIPv4 } from "@/lib/ip";
 
 interface AddDeviceDialogProps {
   open: boolean;
@@ -34,11 +35,6 @@ const deviceRoles = [
   "Automation Controller",
   "Environmental Monitor"
 ];
-
-const validateIPAddress = (ip: string): boolean => {
-  const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-  return ipv4Regex.test(ip);
-};
 
 export const AddDeviceDialog = ({ open, onOpenChange, onSave }: AddDeviceDialogProps) => {
   const [formData, setFormData] = useState({
@@ -72,16 +68,16 @@ export const AddDeviceDialog = ({ open, onOpenChange, onSave }: AddDeviceDialogP
 
     // IP validation - if IP is provided, subnet mask is required
     if (formData.ipAddress) {
-      if (!validateIPAddress(formData.ipAddress)) {
-        newErrors.ipAddress = "Please enter a valid IP address";
+      if (!isIPv4(formData.ipAddress)) {
+        newErrors.ipAddress = "Enter an IPv4 address, e.g. 192.168.1.10";
       }
       if (!formData.subnetMask) {
         newErrors.subnetMask = "Subnet Mask is required when IP address is provided";
       }
     }
 
-    if (formData.gateway && !validateIPAddress(formData.gateway)) {
-      newErrors.gateway = "Please enter a valid gateway address";
+    if (formData.gateway && !isIPv4(formData.gateway)) {
+      newErrors.gateway = "Enter the gateway as an IPv4 address";
     }
 
     setErrors(newErrors);
