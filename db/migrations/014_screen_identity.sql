@@ -9,9 +9,9 @@ UPDATE screens SET number = nullif(btrim(number), ''), name = nullif(btrim(name)
 WHERE number IS DISTINCT FROM nullif(btrim(number), '') OR name IS DISTINCT FROM nullif(btrim(name), '');
 
 ALTER TABLE screens
-  ADD CONSTRAINT screens_number_or_name CHECK (number IS NOT NULL OR name IS NOT NULL),
+  ADD CONSTRAINT screens_number_or_name CHECK (btrim(coalesce(number, '')) <> '' OR btrim(coalesce(name, '')) <> ''),
   ADD CONSTRAINT screens_number_is_whole CHECK (number ~ '^(0|[1-9][0-9]*)$'),
   ADD CONSTRAINT screens_number_unique EXCLUDE USING btree (theatre_id WITH =, number WITH =)
     WHERE (status <> 'Deleted' AND number IS NOT NULL) DEFERRABLE INITIALLY DEFERRED,
-  ADD CONSTRAINT screens_name_unique EXCLUDE USING btree (theatre_id WITH =, lower(name) WITH =)
-    WHERE (status <> 'Deleted' AND name IS NOT NULL) DEFERRABLE INITIALLY DEFERRED;
+  ADD CONSTRAINT screens_name_unique EXCLUDE USING btree (theatre_id WITH =, lower(btrim(name)) WITH =)
+    WHERE (status <> 'Deleted' AND btrim(name) <> '') DEFERRABLE INITIALLY DEFERRED;
