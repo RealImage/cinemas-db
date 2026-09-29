@@ -4,6 +4,9 @@ import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
 import { SCREEN_JSON, SCREEN_ORDER, saveScreen } from "./screens";
 import { SYSTEM_NAME, theatreSystemName } from "../theatreSystems";
+import { configurationsFor } from "./wtf";
+import { LIVE_WIRE_AGENT, type ConfigFieldDef } from "../../src/data/agentConfigData";
+import type { TheatreLiveWire } from "../../src/data/wtfData";
 import {
   THEATRE_LISTINGS, type Company, type DashboardStats, type Screen, type Theatre, type TheatreMapping, type TheatreSystemOptions,
 } from "../../src/types";
@@ -26,7 +29,6 @@ const DELIVERY_KEYS = [
   "dcpNetworkDeliveryMethods", "dcpModemDeliveryMethods", "dcpDeliveryContacts", "sendEmailsForDCPDelivery",
   "dcpContentTypesForEmail", "keyDeliveryContacts", "kdmDeliveryEmailsInFLMX", "autoIngestOfContentEnabled",
   "autoIngestContentTypes", "autoIngestTimeSlots", "kdmAutoIngestTimeSlots", "qcnTheatreIPAddressRange", "downloadRestrictionsEnabled", "downloadRestrictions",
-  "liveWireEnabled", "liveWireConfig",
 ] as const;
 
 /** A theatre's TMS and ticketing system (from the Credentials Manager): id and name of each. */
@@ -713,6 +715,20 @@ theatres.delete("/:id", async (c) => {
 });
 
 /** Change history, newest first. */
+/** The Live Wire settings that apply at this theatre (theatre, else chain, else Global), read-only. */
+theatres.get("/:id/livewire", async (c) => {
+  const [t] = await query<{ name: string; chain: string | null }>(
+    `SELECT t.name, c.name AS chain FROM theatres t LEFT JOIN chains c ON c.id = t.chain_id WHERE t.id = $1`,
+    [c.req.param("id")]);
+  if (!t) throw notFound("Theatre");
+  const [agent] = await query<{ id: string; fields: ConfigFieldDef[] }>(
+    "SELECT id, config_fields AS fields FROM fleet_images WHERE agent_os_name = $1 ORDER BY id LIMIT 1", [LIVE_WIRE_AGENT]);
+  const result: TheatreLiveWire = agent
+    ? { imageId: agent.id, configuration: (await configurationsFor([agent], t.chain ?? "", t.name)).get(agent.id) ?? [] }
+    : { imageId: null, configuration: [] };
+  return c.json(result);
+});
+
 theatres.get("/:id/logs", async (c) => {
   const id = c.req.param("id");
   const [exists] = await query("SELECT 1 FROM theatres WHERE id = $1", [id]);

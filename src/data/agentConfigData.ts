@@ -10,6 +10,13 @@ export const isAgentImage = (image: { provider: string }) => image.provider !== 
 export const agentConfigurationsPath = (imageId: string) => `/fleet-management/images/${imageId}/configurations`;
 export const IMAGE_MANAGEMENT_PATH = "/fleet-management/images";
 
+/**
+ * Link to an agent's configurations that opens one chain or theatre's configuration for editing (or adding, when
+ * it has none yet).
+ */
+export const agentConfigurationLink = (imageId: string, scope: "chain" | "theatre", ref: string) =>
+  `${IMAGE_MANAGEMENT_PATH}/${encodeURIComponent(imageId)}/configurations?${new URLSearchParams({ scope, ref })}`;
+
 // ---------------------------------------------------------------------------
 // Entitlements
 // ---------------------------------------------------------------------------
@@ -126,3 +133,6 @@ export type AgentUpdateInput = Pick<AgentDetails, "entitlements" | "configFields
 
 /** On update, a masked field left out of `values` keeps its stored value. */
 export type AgentConfigurationInput = Pick<AgentConfiguration, "scope" | "ref" | "values">;
+
+/** Fleet image name of the Live Wire agent, whose theatre settings the theatre form shows read-only. */
+export const LIVE_WIRE_AGENT = "Live Wire";

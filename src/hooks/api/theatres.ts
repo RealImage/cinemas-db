@@ -2,7 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { api } from "@/lib/api";
 import type { Company, DashboardStats, Theatre, TheatreSystemOptions } from "@/types";
 import type { WireTAPDevice } from "@/types/wireTAP";
-import type { WtfData } from "@/data/wtfData";
+import type { TheatreLiveWire, WtfData } from "@/data/wtfData";
 import type { TheatreFacets, TheatrePage, TheatreSearchMode, TheatreTag } from "@/data/theatreSearch";
 
 export const theatreKeys = {
@@ -16,6 +16,7 @@ export const theatreKeys = {
   page: (query: string) => ["theatres", "page", query] as const,
   facets: ["theatres", "facets"] as const,
   systems: (chainId: string) => ["theatres", "systems", chainId] as const,
+  liveWire: (id: string) => ["theatres", "livewire", id] as const,
 };
 
 export type TheatreLogEntry = {
@@ -69,6 +70,14 @@ export const useTheatreSystemOptions = (chainId: string | undefined) =>
   useQuery({
     queryKey: theatreKeys.systems(chainId ?? ""),
     queryFn: () => api.get<TheatreSystemOptions>(`/theatres/systems?chainId=${encodeURIComponent(chainId ?? "")}`),
+  });
+
+/** The Live Wire settings that apply at a theatre (read-only). */
+export const useTheatreLiveWire = (id: string | undefined) =>
+  useQuery({
+    queryKey: theatreKeys.liveWire(id ?? ""),
+    queryFn: () => api.get<TheatreLiveWire>(`/theatres/${id}/livewire`),
+    enabled: !!id,
   });
 
 export const useTheatre = (id: string | undefined) =>

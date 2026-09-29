@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Eye, Pencil, Plus, Settings2, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { DataTable, Column } from "@/components/ui/data-table";
@@ -27,6 +27,8 @@ interface Props {
   rows: AgentConfiguration[]; // already filtered to this scope
   /** Opens the Edit agent dialog, for agents without a configurations format. */
   onEditAgent: () => void;
+  /** Chain or theatre whose configuration opens for editing on arrival (added when it has none). */
+  openRef?: string;
 }
 
 const scopeHints: Record<ConfigScope, string> = {
@@ -38,7 +40,7 @@ const scopeHints: Record<ConfigScope, string> = {
 const optionsFor = (key: "ref" | "updatedBy") => (rows: AgentConfiguration[]) =>
   Array.from(new Set(rows.map((r) => r[key]))).sort((a, b) => a.localeCompare(b));
 
-export const ConfigurationsTab = ({ agent, scope, rows, onEditAgent }: Props) => {
+export const ConfigurationsTab = ({ agent, scope, rows, onEditAgent, openRef }: Props) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -56,6 +58,18 @@ export const ConfigurationsTab = ({ agent, scope, rows, onEditAgent }: Props) =>
   const openView = (r: AgentConfiguration) => { setSelectedId(r.id); setViewOpen(true); };
   const openEdit = (r: AgentConfiguration | null) => { setSelectedId(r?.id ?? null); setViewOpen(false); setEditOpen(true); };
   const openDelete = (r: AgentConfiguration) => { setSelectedId(r.id); setDeleteOpen(true); };
+
+  // Arriving from a link (e.g. the theatre form's Live Wire section): open that configuration once
+  const [addRef, setAddRef] = useState<string | undefined>(undefined);
+  const openedRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!openRef || openedRef.current === openRef || fields.length === 0) return;
+    openedRef.current = openRef;
+    const existing = rows.find((r) => r.ref === openRef);
+    setAddRef(existing ? undefined : openRef);
+    setSelectedId(existing?.id ?? null);
+    setEditOpen(true);
+  }, [openRef, rows, fields.length]);
 
   if (fields.length === 0) {
     return (
@@ -163,6 +177,7 @@ export const ConfigurationsTab = ({ agent, scope, rows, onEditAgent }: Props) =>
         scope={scope}
         row={selected}
         takenRefs={rows.map((r) => r.ref)}
+        initialRef={selectedId ? undefined : addRef}
         onSave={(input) => handleSave({ ...input, imageId: agent.id })}
         saving={save.isPending}
       />
