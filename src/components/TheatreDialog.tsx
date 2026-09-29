@@ -22,7 +22,8 @@ import {
   Contact,
   DeliveryAddress,
   TheatreMapping,
-  DownloadRestrictions
+  DownloadRestrictions,
+  THEATRE_LISTINGS
 } from "@/types";
 import { IPSuitesTabContent } from "./theatres/ip-suites/IPSuitesTabContent";
 import { DataTable, Column } from "@/components/ui/data-table";
@@ -321,7 +322,7 @@ export const TheatreDialog = ({
       companyName: "",
       exhibitorIntegratorCompanies: [],
       theatreMappings: [],
-      listing: "Listed",
+      listing: "Listed - Public",
       type: "",
       address: "",
       status: "Active",
@@ -1002,8 +1003,9 @@ export const TheatreDialog = ({
                         <SelectValue placeholder="Select listing type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Listed">Listed</SelectItem>
-                        <SelectItem value="Private">Private</SelectItem>
+                        {THEATRE_LISTINGS.map((listing) => (
+                          <SelectItem key={listing} value={listing}>{listing}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

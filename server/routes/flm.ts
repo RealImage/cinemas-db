@@ -168,7 +168,7 @@ flm.post("/:id/create-theatre", async (c) => {
     const result = await transaction(async (client) => {
       const feed = await lockFeed(client, c.req.param("id"));
       const { rows } = await client.query<{ id: string }>(
-        `INSERT INTO theatres (name, listing, status, created_by, updated_by) VALUES ($1, 'Listed', 'Active', $2, $2) RETURNING id`,
+        `INSERT INTO theatres (name, listing, status, created_by, updated_by) VALUES ($1, 'Listed - Public', 'Active', $2, $2) RETURNING id`,
         [feed.theatre_name, CURRENT_USER],
       );
       const theatreId = rows[0].id;

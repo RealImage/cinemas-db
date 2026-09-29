@@ -1,3 +1,7 @@
+/** How a theatre is listed: shown to everyone, only to its companies, or not at all. */
+export const THEATRE_LISTINGS = ["Listed - Public", "Listed - Private", "Unlisted"] as const;
+export type TheatreListing = (typeof THEATRE_LISTINGS)[number];
+
 export type Operator = {
   name: string;
   email: string;
@@ -166,7 +170,7 @@ export type Theatre = {
   companyName: string;
   exhibitorIntegratorCompanies?: string[];
   theatreMappings?: TheatreMapping[];
-  listing?: "Listed" | "Private";
+  listing?: TheatreListing;
   type: string;
   address: string;
   city: string;

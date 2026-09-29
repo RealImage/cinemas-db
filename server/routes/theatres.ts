@@ -3,7 +3,7 @@ import type pg from "pg";
 import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
 import { SCREEN_JSON, SCREEN_ORDER, saveScreen } from "./screens";
-import type { Company, DashboardStats, Screen, Theatre, TheatreMapping } from "../../src/types";
+import { THEATRE_LISTINGS, type Company, type DashboardStats, type Screen, type Theatre, type TheatreMapping } from "../../src/types";
 import type { WireTAPDevice } from "../../src/types/wireTAP";
 import { formatTheatreAddress, theatreAlternateNames, type TheatreSummary } from "../../src/data/theatreSummary";
 
@@ -124,8 +124,8 @@ function validate(body: TheatreInput, creating: boolean) {
   if (body.status !== undefined && !STATUSES.includes(body.status)) {
     throw httpError(400, `Status must be one of ${STATUSES.join(", ")}`);
   }
-  if (body.listing != null && (body.listing as string) !== "" && !["Listed", "Private"].includes(body.listing)) {
-    throw httpError(400, "Listing must be Listed or Private");
+  if (body.listing != null && (body.listing as string) !== "" && !(THEATRE_LISTINGS as readonly string[]).includes(body.listing)) {
+    throw httpError(400, `Listing must be ${THEATRE_LISTINGS.join(", ")}`);
   }
   if (body.email && !EMAIL.test(String(body.email))) throw httpError(400, `"${body.email}" is not a valid email address`);
   for (const key of ["latitude", "longitude", "bikeParkingCapacity", "carParkingCapacity"] as const) {
@@ -215,7 +215,9 @@ function diffLogs(before: Theatre, after: Theatre): LogEntry[] {
     if (a !== b) logs.push({ section, action: "Updated", oldValue: a, newValue: b });
   }
   if ((before.listing ?? null) !== (after.listing ?? null)) {
-    logs.push({ section: "General Information", action: after.listing === "Private" ? "Unlisted" : "Listed",
+    // Listed / Unlisted when the theatre enters or leaves the listings; Public ↔ Private is an update
+    const action = after.listing === "Unlisted" ? "Unlisted" : before.listing === "Unlisted" || !before.listing ? "Listed" : "Updated";
+    logs.push({ section: "General Information", action,
       oldValue: before.listing ?? null, newValue: after.listing ?? null });
   }
   const deliveryChanged = DELIVERY_KEYS.some((k) => JSON.stringify(before[k] ?? null) !== JSON.stringify(after[k] ?? null));
@@ -416,7 +418,7 @@ theatres.post("/", async (c) => {
     const theatre = await transaction(async (client) => {
       const { rows } = await client.query<{ id: string }>(
         `INSERT INTO theatres (name, uuid, listing, status, created_by, updated_by)
-         VALUES ($1, coalesce($2, gen_random_uuid()::text), 'Listed', 'Active', $3, $3) RETURNING id`,
+         VALUES ($1, coalesce($2, gen_random_uuid()::text), 'Listed - Public', 'Active', $3, $3) RETURNING id`,
         [String(body.name).trim(), blankToNull(body.uuid) ?? null, CURRENT_USER],
       );
       const id = rows[0].id;
