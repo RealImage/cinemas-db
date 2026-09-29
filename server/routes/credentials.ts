@@ -83,10 +83,10 @@ const cleanList = (list: string[]) => Array.from(new Set(list.map((x) => x.trim(
 // Devices
 // ---------------------------------------------------------------------------
 
-// Seeded ids are "cred-<n>"; order by n so the list keeps its original order.
+// Seeded ids are "cred-<n>"; order by n so the list keeps its original order, with TMS and ticketing systems last.
 credentials.get("/devices", async (c) =>
   c.json(await query<CredentialDeviceWithStatus>(
-    `${DEVICE_SELECT} ORDER BY substring(d.id FROM '^cred-(\\d+)$')::int NULLS LAST, d.brand, d.model`)));
+    `${DEVICE_SELECT} ORDER BY d.type IN ('TMS', 'Ticketing System'), substring(d.id FROM '^cred-(\\d+)$')::int NULLS LAST, d.brand, d.model`)));
 
 credentials.get("/devices/:id", async (c) => c.json(await getDevice(c.req.param("id"))));
 

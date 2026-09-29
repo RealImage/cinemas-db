@@ -116,6 +116,22 @@ export type TheatreDeletionRequest = {
   permanentDeleteFrom: string | null;
 };
 
+export type ScreenOption = { id: string; name: string };
+/** Choices for a screen's picture fields: lookup masters and industry companies by role. */
+export type ScreenOptions = {
+  screenTypes: ScreenOption[];
+  threeDModels: ScreenOption[];
+  screenManufacturers: ScreenOption[];
+  digitalIntegrators: ScreenOption[];
+  datasatProviders: ScreenOption[];
+  adConsolidators: ScreenOption[];
+};
+
+/** A screen tracks IMAX integration only when it has an IMAX projection experience. */
+/** Safe on untrusted input: anything but an array of strings has no IMAX experience. */
+export const isImaxScreen = (experiences: unknown) =>
+  Array.isArray(experiences) && experiences.some((x) => typeof x === "string" && x.startsWith("IMAX"));
+
 export const IMAX_INTEGRATION_TYPES = ["WireTAP", "TMS", "Both"] as const;
 export type ImaxIntegrationType = (typeof IMAX_INTEGRATION_TYPES)[number];
 
@@ -140,6 +156,13 @@ export type Screen = {
   /** The reason's text, as returned by the API. */
   statusReason?: string | null;
   statusComments?: string | null;
+  /** Picture fields (ids into GET /api/screens/options). */
+  screenTypeId?: string | null;
+  screenManufacturerId?: string | null;
+  digitalIntegratorId?: string | null;
+  threeDModelIds?: string[];
+  datasatProviderIds?: string[];
+  adConsolidatorIds?: string[];
   closureNotes?: string;
   seatingCapacity?: number;
   coolingType?: string;
