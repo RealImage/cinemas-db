@@ -171,7 +171,7 @@ export type Theatre = {
   exhibitorIntegratorCompanies?: string[];
   theatreMappings?: TheatreMapping[];
   /** Null when not set. */
-  listing?: TheatreListing | null;
+  listing: TheatreListing | null;
   type: string;
   address: string;
   city: string;
