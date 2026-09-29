@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,22 +22,32 @@ const PATHS: Record<string, string> = {
 const withPaths = (items: DashboardCount[]): DashboardItem[] =>
   items.map((item) => ({ ...item, path: PATHS[item.label] }));
 
-const Row = ({ item, onClick }: { item: DashboardItem; onClick?: () => void }) => (
-  <div
-    className={`flex items-center justify-between py-2 px-3 rounded-md transition-colors ${
-      onClick ? "hover:bg-muted/50 cursor-pointer" : ""
-    }`}
-    onClick={onClick}
-  >
-    <span className="text-sm">{item.label}</span>
-    <Badge
-      variant={item.count > 0 ? "default" : "secondary"}
-      className="min-w-[3rem] justify-center"
+const ROW = "flex items-center justify-between py-2 px-3 rounded-md transition-colors";
+
+/** A summary row; rows with a destination are router links, so they're focusable and open with Enter. */
+const Row = ({ item }: { item: DashboardItem }) => {
+  const content = (
+    <>
+      <span className="text-sm">{item.label}</span>
+      <Badge
+        variant={item.count > 0 ? "default" : "secondary"}
+        className="min-w-[3rem] justify-center"
+      >
+        {item.count.toLocaleString()}
+      </Badge>
+    </>
+  );
+  return item.path ? (
+    <Link
+      to={item.path}
+      className={`${ROW} hover:bg-muted/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary`}
     >
-      {item.count.toLocaleString()}
-    </Badge>
-  </div>
-);
+      {content}
+    </Link>
+  ) : (
+    <div className={ROW}>{content}</div>
+  );
+};
 
 const Section = ({
   title,
@@ -47,9 +57,7 @@ const Section = ({
   title: string;
   items: DashboardItem[];
   delay: number;
-}) => {
-  const navigate = useNavigate();
-  return (
+}) => (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -61,17 +69,12 @@ const Section = ({
         </CardHeader>
         <CardContent className="space-y-1">
           {items.map((item) => (
-            <Row
-              key={item.label}
-              item={item}
-              onClick={item.path ? () => navigate(item.path!) : undefined}
-            />
+            <Row key={item.label} item={item} />
           ))}
         </CardContent>
       </Card>
     </motion.div>
-  );
-};
+);
 
 const ApprovalsConflicts = () => {
   const summaryQuery = useApprovalsSummary();
