@@ -215,8 +215,10 @@ function diffLogs(before: Theatre, after: Theatre): LogEntry[] {
     if (a !== b) logs.push({ section, action: "Updated", oldValue: a, newValue: b });
   }
   if ((before.listing ?? null) !== (after.listing ?? null)) {
-    // Listed / Unlisted when the theatre enters or leaves the listings; Public ↔ Private is an update
-    const action = after.listing === "Unlisted" ? "Unlisted" : before.listing === "Unlisted" || !before.listing ? "Listed" : "Updated";
+    // Listed / Unlisted only when the theatre enters or leaves the listings (Listed - Public / Private);
+    // Public ↔ Private and Not set ↔ Unlisted are updates
+    const listed = (v: string | null | undefined) => v === "Listed - Public" || v === "Listed - Private";
+    const action = listed(after.listing) === listed(before.listing) ? "Updated" : listed(after.listing) ? "Listed" : "Unlisted";
     logs.push({ section: "General Information", action,
       oldValue: before.listing ?? null, newValue: after.listing ?? null });
   }
