@@ -49,7 +49,7 @@ export const AddTheatreDialog = ({
         name: formData.name,
         displayName: formData.displayName,
         address: formData.address,
-        listing: "Listed",
+        listing: "Listed - Public",
         type: "Multiplex",
         status: "Active",
       });
