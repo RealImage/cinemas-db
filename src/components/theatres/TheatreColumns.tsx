@@ -1,18 +1,32 @@
 
 import React from "react";
 import { Film, Calendar, User } from "lucide-react";
-import { Theatre } from "@/types";
 import { Column } from "@/components/ui/data-table"; // Import the Column type from data-table
-import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/dateUtils";
 import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
+import { TagButton } from "@/components/theatres/TheatreTags";
+import { THEATRE_LISTINGS } from "@/types";
+import { LISTING_NOT_SET, type TheatreFacets, type TheatrePage, type TheatreTag } from "@/data/theatreSearch";
 
-export const useTheatreColumns = (): Column<Theatre>[] => {
-  const columns: Column<Theatre>[] = [
+/** A Theatre List row: a theatre, plus what matched when the list is searched. */
+export type TheatreListRow = TheatrePage["rows"][number];
+
+/** Theatre List columns. Chain, company, location and ad-integrator values are tags: clicking one filters by it. */
+export const useTheatreColumns = ({ onTag }: { onTag: (tag: TheatreTag) => void }): Column<TheatreListRow>[] => {
+  const columns: Column<TheatreListRow>[] = [
     {
       header: "Theatre Name",
       accessor: "name",
-      cell: (row: Theatre) => <TheatreNameWithInfo name={row.name} theatreRef={row.id} nameClassName="" />,
+      cell: (row) => (
+        <div>
+          <TheatreNameWithInfo name={row.name} theatreRef={row.id} nameClassName="" />
+          {row.match && row.match.field !== "Name" && (
+            <div className="max-w-[260px] truncate text-xs text-muted-foreground" title={`${row.match.field}: ${row.match.value}`}>
+              {row.match.field}: <span className="font-mono">{row.match.value}</span>
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       header: "Display Name",
@@ -20,35 +34,35 @@ export const useTheatreColumns = (): Column<Theatre>[] => {
     },
     {
       header: "Chain Name",
-      accessor: "chainName"
+      accessor: "chainName",
+      cell: (row) => row.chainName ? <TagButton tag={{ kind: "chain", value: row.chainName }} onTag={onTag} /> : null,
     },
     {
       header: "Company",
-      accessor: "companyName"
+      accessor: "companyName",
+      cell: (row) => row.companyName ? <TagButton tag={{ kind: "owner", value: row.companyName }} onTag={onTag} /> : null,
     },
     {
       header: "Location",
       accessor: "address",
-      cell: (row: Theatre) => {
-        const addressParts = row.address.split(',').map(part => part.trim());
-        const cityStateCountry = [row.city, row.state, row.country].filter(Boolean).join(", ");
-        const location = !row.address
-          ? cityStateCountry
-          : addressParts.length >= 3
-            ? `${addressParts[addressParts.length - 3]}, ${addressParts[addressParts.length - 2]}, ${addressParts[addressParts.length - 1]}`
-            : row.address;
-        
+      cell: (row) => {
+        const places: TheatreTag[] = [
+          { kind: "city", value: row.city },
+          { kind: "province", value: row.state },
+          { kind: "country", value: row.country },
+        ].filter((t): t is TheatreTag => !!t.value);
+        if (!places.length) return <span className="text-xs text-muted-foreground">{row.address || "Not set"}</span>;
         return (
-          <span className="truncate max-w-[200px] block" title={row.address || cityStateCountry}>
-            {location}
-          </span>
+          <div className="flex max-w-[240px] flex-wrap gap-1" title={row.address || undefined}>
+            {places.map((tag) => <TagButton key={tag.kind} tag={tag} onTag={onTag} />)}
+          </div>
         );
-      }
+      },
     },
     {
       header: "Status",
       accessor: "status",
-      cell: (row: Theatre) => (
+      cell: (row) => (
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
           row.status === "Active" 
             ? "bg-green-100 text-green-800" 
@@ -61,19 +75,24 @@ export const useTheatreColumns = (): Column<Theatre>[] => {
       )
     },
     {
+      header: "Listing",
+      accessor: "listing",
+      cell: (row) => row.listing
+        ? <span className="whitespace-nowrap text-sm">{row.listing}</span>
+        : <span className="text-xs text-muted-foreground">{LISTING_NOT_SET}</span>,
+    },
+    {
       header: "Ad Integrators",
       accessor: "adIntegrators",
-      cell: (row: Theatre) => {
+      cell: (row) => {
         const adIntegrators = row.adIntegrators ?? [];
         
         return (
           <div className="space-y-1">
             {adIntegrators.length > 0 ? (
-              <div className="flex flex-col gap-1">
-                {adIntegrators.map((integrator, i) => (
-                  <Badge key={i} variant="outline" className="text-xs">
-                    {integrator}
-                  </Badge>
+              <div className="flex flex-col items-start gap-1">
+                {adIntegrators.map((integrator) => (
+                  <TagButton key={integrator} tag={{ kind: "adIntegrator", value: integrator }} onTag={onTag} />
                 ))}
               </div>
             ) : (
@@ -86,7 +105,7 @@ export const useTheatreColumns = (): Column<Theatre>[] => {
     {
       header: "WireTAP",
       accessor: "wireTap",
-      cell: (row: Theatre) => {
+      cell: (row) => {
         const wireTapSerials = (row.wireTAPDevices ?? []).map((d) => d.serialNumber);
         
         return (
@@ -109,7 +128,7 @@ export const useTheatreColumns = (): Column<Theatre>[] => {
     {
       header: "Screens",
       accessor: "screenCount",
-      cell: (row: Theatre) => (
+      cell: (row) => (
         <div className="flex items-center">
           <Film className="h-4 w-4 mr-1 text-muted-foreground" />
           <span>{row.screenCount}</span>
@@ -119,7 +138,7 @@ export const useTheatreColumns = (): Column<Theatre>[] => {
     {
       header: "Last Updated",
       accessor: "updatedAt",
-      cell: (row: Theatre) => (
+      cell: (row) => (
         <div className="flex items-center">
           <Calendar className="h-4 w-4 mr-1 text-muted-foreground" />
           <span className="text-sm">
@@ -131,7 +150,7 @@ export const useTheatreColumns = (): Column<Theatre>[] => {
     {
       header: "Updated By",
       accessor: "updatedBy",
-      cell: (row: Theatre) => (
+      cell: (row) => (
         <div className="flex items-center">
           <User className="h-4 w-4 mr-1 text-muted-foreground" />
           <span className="text-sm">
@@ -145,45 +164,17 @@ export const useTheatreColumns = (): Column<Theatre>[] => {
   return columns;
 };
 
-export const useEnhancedColumns = (columns: Column<Theatre>[]) => {
+/** Adds the Status, Listing, Chain and Company filters (options from the server) and makes the other columns sortable. */
+export const useEnhancedColumns = (columns: Column<TheatreListRow>[], facets: TheatreFacets | undefined) => {
   return React.useMemo(() => {
-    return columns.map(column => {
-      if (column.header === "Status") {
-        return {
-          ...column,
-          filterable: true,
-          filterOptions: ["Active", "Inactive", "Closed"]
-        };
-      }
-      
-      if (column.header === "Chain Name") {
-        return {
-          ...column,
-          filterable: true,
-          filterOptions: (data: Theatre[]) => {
-            // Get unique chain names
-            const chainNames = new Set(data.map(theatre => theatre.chainName));
-            return Array.from(chainNames);
-          }
-        };
-      }
-      
-      if (column.header === "Company") {
-        return {
-          ...column,
-          filterable: true,
-          filterOptions: (data: Theatre[]) => {
-            // Get unique company names
-            const companyNames = new Set(data.map(theatre => theatre.companyName));
-            return Array.from(companyNames);
-          }
-        };
-      }
-      
-      return {
-        ...column,
-        sortable: true // Make all columns sortable
-      };
-    });
-  }, [columns]);
+    const filters: Record<string, string[]> = {
+      Status: ["Active", "Inactive", "Closed"],
+      Listing: [...THEATRE_LISTINGS, LISTING_NOT_SET],
+      "Chain Name": facets?.chains ?? [],
+      Company: facets?.companies ?? [],
+    };
+    return columns.map((column) =>
+      filters[column.header] ? { ...column, filterable: true, filterOptions: filters[column.header] } : { ...column, sortable: true },
+    );
+  }, [columns, facets]);
 };

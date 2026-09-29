@@ -12,11 +12,8 @@ import { DeleteTheatreDialog } from "@/components/DeleteTheatreDialog";
 import { TheatreTable } from "@/components/theatres/TheatreTable";
 import { WtfSheet } from "@/components/theatres/WtfSheet";
 import { useTheatreHandlers } from "@/components/theatres/useTheatres";
-import { useTheatres } from "@/hooks/api/theatres";
-import { QueryState } from "@/components/ui/query-state";
 
 const Theatres = () => {
-  const theatresQuery = useTheatres();
   const { handleSaveTheatre, handleDeleteTheatre, handleToggleStatus } = useTheatreHandlers();
   
   // Dialog states
@@ -79,18 +76,13 @@ const Theatres = () => {
         </Button>
       </div>
       
-      <QueryState query={theatresQuery} label="theatres">
-        {(theatres) => (
-          <TheatreTable
-            theatres={theatres}
-            onViewTheatre={handleViewTheatre}
-            onViewLogs={handleViewLogs}
-            onViewWtf={setWtfTheatre}
-            onToggleStatus={handleToggleTheatreStatus}
-            onDelete={handleDeleteTheatreClick}
-          />
-        )}
-      </QueryState>
+      <TheatreTable
+        onViewTheatre={handleViewTheatre}
+        onViewLogs={handleViewLogs}
+        onViewWtf={setWtfTheatre}
+        onToggleStatus={handleToggleTheatreStatus}
+        onDelete={handleDeleteTheatreClick}
+      />
       
       <WtfSheet theatreId={wtfTheatre?.id ?? null} theatreName={wtfTheatre?.name} onOpenChange={(open) => { if (!open) setWtfTheatre(null); }} />
 

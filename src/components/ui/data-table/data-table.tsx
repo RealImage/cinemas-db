@@ -26,6 +26,8 @@ export function DataTable<T extends { id: string }>({
   onFilterChange,
   showFilters = true,
   toolbar,
+  subToolbar,
+  pageResetKey,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -66,6 +68,11 @@ export function DataTable<T extends { id: string }>({
       setCurrentPage(1);
     }
   }, [searchTerm, serverSide, debouncedSearch]);
+
+  // The page's own filters changed: its data restarts at page 1, so the pager should too
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageResetKey]);
 
   // Filtering function for client-side filtering
   const filteredData = useMemo(() => {
@@ -270,6 +277,7 @@ export function DataTable<T extends { id: string }>({
           {toolbar}
         </SearchExport>
       )}
+      {subToolbar}
       
       <div className="rounded-md border overflow-hidden animate-scale-in">
         <div className="overflow-x-auto">

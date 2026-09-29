@@ -4,6 +4,10 @@ import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
 import { SCREEN_JSON, SCREEN_ORDER, saveScreen } from "./screens";
 import { THEATRE_LISTINGS, type Company, type DashboardStats, type Screen, type Theatre, type TheatreMapping } from "../../src/types";
+import {
+  LISTING_NOT_SET, isTheatreSearchMode, isTheatreTagKind, searchTokens,
+  type TheatreFacets, type TheatrePage, type TheatreSearchHit, type TheatreSearchMode, type TheatreTagKind,
+} from "../../src/data/theatreSearch";
 import type { WireTAPDevice } from "../../src/types/wireTAP";
 import { formatTheatreAddress, theatreAlternateNames, type TheatreSummary } from "../../src/data/theatreSummary";
 
@@ -376,6 +380,179 @@ theatres.get("/wiretap-devices/search", async (c) => {
   return c.json(await query<WireTAPDevice>(
     `SELECT ${WIRETAP_COLUMNS} ${WIRETAP_FROM} WHERE lower(${column}) = lower($1) ORDER BY d.id LIMIT 1`, [q],
   ));
+});
+
+/** Where each search mode looks: (theatre id, field label, value) for every searchable value. */
+const SEARCH_SOURCES: Record<Exclude<TheatreSearchMode, "all">, string> = {
+  theatre: `
+    SELECT t.id, 'Name' AS label, t.name AS value FROM theatres t
+    UNION ALL SELECT t.id, 'Display name', t.display_name FROM theatres t WHERE t.display_name <> ''
+    UNION ALL SELECT t.id, 'Alternate name', a FROM theatres t, unnest(t.alternate_names) a
+    UNION ALL SELECT t.id, 'Chain', ch.name FROM theatres t JOIN chains ch ON ch.id = t.chain_id
+    UNION ALL SELECT t.id, 'Company', co.name FROM theatres t JOIN companies co ON co.id = t.company_id
+    UNION ALL SELECT t.id, 'Address', concat_ws(', ', nullif(t.address, ''), nullif(t.city, ''), nullif(t.state, ''),
+                                                 nullif(t.postal_code, ''), nullif(t.country, '')) FROM theatres t`,
+  uuid: `SELECT t.id, 'UUID', t.uuid FROM theatres t WHERE t.uuid IS NOT NULL`,
+  thirdParty: `SELECT m.theatre_id, 'Third-party ID', m.domain || ':' || m.external_id FROM theatre_mappings m`,
+  device: `
+    SELECT s.theatre_id, 'Device serial', sd.serial_number FROM screen_devices sd
+      JOIN screens s ON s.id = sd.screen_id WHERE s.status <> 'Deleted'
+    UNION ALL SELECT d.theatre_id, 'WireTAP ' || f.label || CASE WHEN d.pull_out_status = 'Pulled Out' THEN ' (pulled out)' ELSE '' END, f.value
+      FROM wiretap_devices d, LATERAL (VALUES ('application serial', d.application_serial_number),
+                                              ('hardware serial', d.hardware_serial_number),
+                                              ('host name', d.host_name)) f(label, value)
+      WHERE d.theatre_id IS NOT NULL AND f.value <> ''`,
+};
+
+/**
+ * CTEs ending in `ranked(id, matched_field, matched_value, score)` for a theatre search, or null for a blank query.
+ * A theatre scores the lengths of the distinct tokens it matches (longer, more specific tokens count for more), plus
+ * a bonus when one field contains the whole query (1000) or equals it (2000). Appends its parameters to `params`.
+ */
+function rankedSearch(q: string, mode: TheatreSearchMode, params: unknown[]): string | null {
+  const phrase = q.trim().toLowerCase().replace(/\s+/g, " ");
+  // Identifiers are matched whole; names and addresses token by token
+  const tokens = mode === "all" || mode === "theatre" ? searchTokens(phrase) : phrase ? [phrase] : [];
+  if (!tokens.length) return null;
+  params.push(tokens, phrase);
+  const [$tokens, $phrase] = [`$${params.length - 1}`, `$${params.length}`];
+  const sources = mode === "all" ? Object.values(SEARCH_SOURCES).join("\n    UNION ALL ") : SEARCH_SOURCES[mode];
+  return `docs(theatre_id, label, value) AS (${sources}),
+     hits AS (
+       SELECT d.theatre_id, d.label, d.value, tok,
+              lower(d.value) = ${$phrase} AS exact, strpos(lower(d.value), ${$phrase}) > 0 AS phrase
+       FROM docs d JOIN unnest(${$tokens}::text[]) tok ON strpos(lower(d.value), tok) > 0),
+     scored AS (
+       SELECT theatre_id, sum(length(tok)) AS token_score
+       FROM (SELECT DISTINCT theatre_id, tok FROM hits) x GROUP BY theatre_id),
+     best AS (
+       SELECT DISTINCT ON (theatre_id) theatre_id, label, value, bool_or(exact) OVER w AS exact, bool_or(phrase) OVER w AS phrase
+       FROM hits WINDOW w AS (PARTITION BY theatre_id)
+       ORDER BY theatre_id, exact DESC, phrase DESC, length(tok) DESC, label = 'Name' DESC),
+     ranked AS (
+       SELECT s.theatre_id AS id, b.label AS matched_field, b.value AS matched_value,
+              (s.token_score + CASE WHEN b.exact THEN 2000 WHEN b.phrase THEN 1000 ELSE 0 END)::int AS score
+       FROM scored s JOIN best b USING (theatre_id))`;
+}
+
+const searchMode = (v: string | undefined): TheatreSearchMode => {
+  const mode = v ?? "all";
+  if (!isTheatreSearchMode(mode)) throw httpError(400, "mode must be all, theatre, uuid, thirdParty or device");
+  return mode;
+};
+
+/** Ranked theatre search, best first (up to 500). ?q=&mode=all|theatre|uuid|thirdParty|device */
+theatres.get("/search", async (c) => {
+  const params: unknown[] = [];
+  const ctes = rankedSearch(c.req.query("q") ?? "", searchMode(c.req.query("mode")), params);
+  if (!ctes) return c.json([] as TheatreSearchHit[]);
+  return c.json(await query<TheatreSearchHit>(
+    `WITH ${ctes}
+     SELECT r.id, r.matched_field AS "matchedField", r.matched_value AS "matchedValue", r.score
+     FROM ranked r JOIN theatres t ON t.id = r.id AND t.status <> 'Deleted'
+     ORDER BY r.score DESC, r.id LIMIT 500`,
+    params,
+  ));
+});
+
+/** Theatre List sort keys (the list's column accessors) and the SQL each sorts by. */
+const LIST_SORTS: Record<string, string> = {
+  name: "lower(t.name)",
+  displayName: "lower(t.display_name)",
+  chainName: "lower(c.name)",
+  companyName: "lower(co.name)",
+  address: "lower(concat_ws(', ', t.city, t.state, t.country))",
+  status: "t.status",
+  listing: "t.listing",
+  adIntegrators: "lower(array_to_string(t.ad_integrators, ', '))",
+  screenCount: "(SELECT count(*) FROM screens s WHERE s.theatre_id = t.id AND s.status <> 'Deleted')",
+  updatedAt: "t.updated_at",
+  updatedBy: "lower(t.updated_by)",
+};
+
+/** Tag kinds for the Theatre List's tag chips, and the condition each adds (`$v` is the tag's value). */
+const TAG_CONDITIONS: Record<TheatreTagKind, (v: string) => string> = {
+  chain: (v) => `c.name = ${v}`,
+  city: (v) => `t.city = ${v}`,
+  province: (v) => `t.state = ${v}`,
+  country: (v) => `t.country = ${v}`,
+  owner: (v) => `co.name = ${v}`,
+  integrator: (v) => `${v} = ANY(t.exhibitor_integrator_companies)`,
+  adIntegrator: (v) => `${v} = ANY(t.ad_integrators)`,
+};
+
+/**
+ * One page of the Theatre List. ?page=&pageSize=&q=&mode=&sort=&dir=asc|desc, plus column filters (status, listing,
+ * chain, company; "Not set" matches a blank listing) and tag chips (tag=kind:value, all must match). With a search
+ * and no sort, the best matches come first, and each row says what matched.
+ */
+theatres.get("/page", async (c) => {
+  const page = Math.max(1, Number(c.req.query("page")) || 1);
+  const pageSize = Math.min(1000, Math.max(1, Number(c.req.query("pageSize")) || 100));
+  const params: unknown[] = [];
+  const bind = (v: unknown) => { params.push(v); return `$${params.length}`; };
+
+  const ctes = rankedSearch(c.req.query("q") ?? "", searchMode(c.req.query("mode")), params);
+  const where = ["t.status <> 'Deleted'"];
+  const oneOf = (name: string, column: string) => {
+    const values = c.req.queries(name)?.filter(Boolean);
+    if (values?.length) where.push(`${column} = ANY(${bind(values)})`);
+  };
+  oneOf("status", "t.status");
+  oneOf("chain", "c.name");
+  oneOf("company", "co.name");
+  const listings = c.req.queries("listing")?.filter(Boolean);
+  if (listings?.length) {
+    where.push(`(t.listing = ANY(${bind(listings)})${listings.includes(LISTING_NOT_SET) ? " OR t.listing IS NULL" : ""})`);
+  }
+  for (const tag of c.req.queries("tag") ?? []) {
+    const at = tag.indexOf(":");
+    const kind = tag.slice(0, at);
+    if (at < 1 || !isTheatreTagKind(kind)) throw httpError(400, `Unknown tag "${tag}"`);
+    where.push(TAG_CONDITIONS[kind](bind(tag.slice(at + 1))));
+  }
+
+  const sort = c.req.query("sort");
+  if (sort && !LIST_SORTS[sort]) throw httpError(400, `Can't sort by ${sort}`);
+  const dir = c.req.query("dir") === "desc" ? "DESC" : "ASC";
+  const order = [sort ? `${LIST_SORTS[sort]} ${dir} NULLS LAST` : ctes ? "r.score DESC" : "", "lower(t.name)", "t.id"].filter(Boolean);
+
+  const from = `${THEATRE_FROM}${ctes ? " JOIN ranked r ON r.id = t.id" : ""} WHERE ${where.join(" AND ")}`;
+  const withClause = ctes ? `WITH ${ctes} ` : "";
+  const [{ total }] = await query<{ total: number }>(`${withClause}SELECT count(*)::int AS total ${from}`, params);
+  const rows = await query<TheatreRow & { matchedField?: string; matchedValue?: string }>(
+    `${withClause}SELECT ${THEATRE_COLUMNS}${ctes ? `, r.matched_field AS "matchedField", r.matched_value AS "matchedValue"` : ""}
+     ${from} ORDER BY ${order.join(", ")} LIMIT ${bind(pageSize)} OFFSET ${bind((page - 1) * pageSize)}`,
+    params,
+  );
+  const result: TheatrePage = {
+    rows: rows.map(({ matchedField, matchedValue, ...row }) => ({
+      ...toTheatre(row), ...(matchedField ? { match: { field: matchedField, value: matchedValue ?? "" } } : {}),
+    })),
+    total,
+  };
+  return c.json(result);
+});
+
+/** Filter options and tag chips for the Theatre List, with how many theatres each covers. */
+theatres.get("/facets", async (c) => {
+  const [facets] = await query<TheatreFacets>(`
+    WITH live AS (SELECT t.*, c.name AS chain_name, co.name AS company_name ${THEATRE_FROM} WHERE t.status <> 'Deleted'),
+    tags AS (
+      SELECT 'chain' AS kind, chain_name AS value FROM live
+      UNION ALL SELECT 'city', city FROM live
+      UNION ALL SELECT 'province', state FROM live
+      UNION ALL SELECT 'country', country FROM live
+      UNION ALL SELECT 'owner', company_name FROM live
+      UNION ALL SELECT 'integrator', unnest(exhibitor_integrator_companies) FROM live
+      UNION ALL SELECT 'adIntegrator', unnest(ad_integrators) FROM live)
+    SELECT
+      (SELECT coalesce(json_agg(DISTINCT status), '[]') FROM live) AS statuses,
+      (SELECT coalesce(json_agg(DISTINCT chain_name) FILTER (WHERE chain_name <> ''), '[]') FROM live) AS chains,
+      (SELECT coalesce(json_agg(DISTINCT company_name) FILTER (WHERE company_name <> ''), '[]') FROM live) AS companies,
+      (SELECT coalesce(json_agg(json_build_object('kind', kind, 'value', value, 'count', n) ORDER BY kind, lower(value)), '[]')
+         FROM (SELECT kind, value, count(*)::int AS n FROM tags WHERE coalesce(value, '') <> '' GROUP BY 1, 2) x) AS tags`);
+  return c.json(facets);
 });
 
 // ---------------------------------------------------------------------------
