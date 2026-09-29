@@ -195,6 +195,17 @@ async function saveDevice(id: string | null, d: CredentialDeviceInput) {
         );
         return row.id;
       }
+      // A device linked to chains or theatres as their TMS / ticketing system must keep that type
+      const { rows: [before] } = await db.query<{ type: string; chains: number; theatres: number }>(
+        `SELECT type,
+                (SELECT count(*)::int FROM chain_tms WHERE device_id = $1) AS chains,
+                (SELECT count(*)::int FROM theatre_systems WHERE device_id = $1) AS theatres
+         FROM credential_devices WHERE id = $1 FOR UPDATE`, [id]);
+      if (before && before.type !== d.type && (before.chains > 0 || before.theatres > 0)) {
+        const uses = [before.chains && `${before.chains} chain${before.chains === 1 ? "" : "s"}`,
+          before.theatres && `${before.theatres} theatre${before.theatres === 1 ? "" : "s"}`].filter(Boolean).join(" and ");
+        throw httpError(409, `${d.brand} ${d.model} is the ${before.type} of ${uses}. Unlink it there before changing its type.`);
+      }
       await db.query(
         `UPDATE credential_devices
          SET brand = $1, model = $2, roles = $3, primary_role = $4, certificate_roles = $5, additional_roles = $6,
