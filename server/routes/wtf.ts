@@ -160,34 +160,44 @@ async function theatreAgents(theatreId: string, theatreName: string, chainName: 
     [theatreId],
   );
   if (installed.length === 0) return [];
+  const configurations = await configurationsFor(installed, chainName, theatreName);
+  return installed.map((a) => ({
+    imageId: a.id,
+    name: a.name,
+    provider: a.provider,
+    versions: a.versions ?? [],
+    entitlements: normalizeEntitlements(a.entitlements),
+    configuration: configurations.get(a.id) ?? [],
+  }));
+}
+
+/**
+ * Per agent, the configuration that applies at a theatre: for each field, the theatre row, else the chain row,
+ * else Global. Masked values are never returned, only flagged.
+ */
+export async function configurationsFor(
+  agents: { id: string; fields: ConfigFieldDef[] }[], chainName: string, theatreName: string,
+): Promise<Map<string, WtfAgent["configuration"]>> {
   const configs = await query<ConfigRow>(
     `SELECT ${CONFIG_COLUMNS} FROM agent_configurations
      WHERE image_id = ANY($1) AND ((scope = 'global') OR (scope = 'chain' AND ref = $2) OR (scope = 'theatre' AND ref = $3))`,
-    [installed.map((a) => a.id), chainName, theatreName],
+    [agents.map((a) => a.id), chainName, theatreName],
   );
-
-  return installed.map((a) => {
+  return new Map(agents.map((a) => {
     const rows = configs.filter((c) => c.imageId === a.id).map((c) => toConfiguration(c, a.fields));
     const ordered = ["theatre", "chain", "global"].map((scope) => rows.find((r) => r.scope === scope)).filter((r) => !!r);
-    return {
-      imageId: a.id,
-      name: a.name,
-      provider: a.provider,
-      versions: a.versions ?? [],
-      entitlements: normalizeEntitlements(a.entitlements),
-      configuration: a.fields.map((field) => {
-        const src = ordered.find((r) => r.maskedKeys.includes(field.key) || r.values[field.key] !== undefined);
-        const masked = !!src?.maskedKeys.includes(field.key);
-        return {
-          field,
-          value: src && !masked ? src.values[field.key] : null,
-          masked,
-          configId: src?.id ?? null,
-          source: src?.scope ?? null,
-          sourceRef: src?.ref ?? null,
-          updatedAt: src?.updatedAt ?? null,
-        };
-      }),
-    };
-  });
+    return [a.id, a.fields.map((field) => {
+      const src = ordered.find((r) => r.maskedKeys.includes(field.key) || r.values[field.key] !== undefined);
+      const masked = !!src?.maskedKeys.includes(field.key);
+      return {
+        field,
+        value: src && !masked ? src.values[field.key] : null,
+        masked,
+        configId: src?.id ?? null,
+        source: src?.scope ?? null,
+        sourceRef: src?.ref ?? null,
+        updatedAt: src?.updatedAt ?? null,
+      };
+    })];
+  }));
 }

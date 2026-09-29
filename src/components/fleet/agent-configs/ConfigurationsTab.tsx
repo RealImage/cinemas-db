@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, Pencil, Plus, Settings2, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { DataTable, Column } from "@/components/ui/data-table";
@@ -27,6 +27,10 @@ interface Props {
   rows: AgentConfiguration[]; // already filtered to this scope
   /** Opens the Edit agent dialog, for agents without a configurations format. */
   onEditAgent: () => void;
+  /** Chain or theatre whose configuration opens for editing on arrival (added when it has none). */
+  openRef?: string;
+  /** Called once `openRef` has been opened, so it isn't opened again. */
+  onOpenRefHandled?: () => void;
 }
 
 const scopeHints: Record<ConfigScope, string> = {
@@ -38,7 +42,7 @@ const scopeHints: Record<ConfigScope, string> = {
 const optionsFor = (key: "ref" | "updatedBy") => (rows: AgentConfiguration[]) =>
   Array.from(new Set(rows.map((r) => r[key]))).sort((a, b) => a.localeCompare(b));
 
-export const ConfigurationsTab = ({ agent, scope, rows, onEditAgent }: Props) => {
+export const ConfigurationsTab = ({ agent, scope, rows, onEditAgent, openRef, onOpenRefHandled }: Props) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -53,9 +57,22 @@ export const ConfigurationsTab = ({ agent, scope, rows, onEditAgent }: Props) =>
   // Global holds a single row
   const canAdd = fields.length > 0 && !(scope === "global" && rows.length > 0);
 
+  /** Chain or theatre to preselect when a link opens Add; cleared by any other open. */
+  const [addRef, setAddRef] = useState<string | undefined>(undefined);
   const openView = (r: AgentConfiguration) => { setSelectedId(r.id); setViewOpen(true); };
-  const openEdit = (r: AgentConfiguration | null) => { setSelectedId(r?.id ?? null); setViewOpen(false); setEditOpen(true); };
+  const openEdit = (r: AgentConfiguration | null) => { setAddRef(undefined); setSelectedId(r?.id ?? null); setViewOpen(false); setEditOpen(true); };
   const openDelete = (r: AgentConfiguration) => { setSelectedId(r.id); setDeleteOpen(true); };
+
+  // Arriving from a link (e.g. the theatre form's Live Wire section): open that configuration, once
+  useEffect(() => {
+    if (!openRef || fields.length === 0) return;
+    const existing = rows.find((r) => r.ref === openRef);
+    setAddRef(existing ? undefined : openRef);
+    setSelectedId(existing?.id ?? null);
+    setViewOpen(false);
+    setEditOpen(true);
+    onOpenRefHandled?.();
+  }, [openRef, rows, fields.length, onOpenRefHandled]);
 
   if (fields.length === 0) {
     return (
@@ -163,6 +180,7 @@ export const ConfigurationsTab = ({ agent, scope, rows, onEditAgent }: Props) =>
         scope={scope}
         row={selected}
         takenRefs={rows.map((r) => r.ref)}
+        initialRef={selectedId ? undefined : addRef}
         onSave={(input) => handleSave({ ...input, imageId: agent.id })}
         saving={save.isPending}
       />

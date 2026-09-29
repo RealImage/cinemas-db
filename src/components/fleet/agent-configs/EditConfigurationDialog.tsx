@@ -31,6 +31,8 @@ interface Props {
   row: AgentConfiguration | null;
   /** Refs already used in this scope, to prevent duplicates. */
   takenRefs: string[];
+  /** Chain or theatre to preselect when adding. */
+  initialRef?: string;
   /** Resolves when saved (the dialog then closes); rejects to keep it open. */
   onSave: (input: AgentConfigurationInput & { configId?: string }) => Promise<unknown>;
   saving?: boolean;
@@ -38,7 +40,7 @@ interface Props {
 
 const inputMode = (f: ConfigFieldDef) => (f.valueType === "integer" ? "numeric" : f.valueType === "storage_gb" || f.valueType === "ip" ? "decimal" : undefined);
 
-export const EditConfigurationDialog = ({ open, onOpenChange, agent, scope, row, takenRefs, onSave, saving = false }: Props) => {
+export const EditConfigurationDialog = ({ open, onOpenChange, agent, scope, row, takenRefs, initialRef, onSave, saving = false }: Props) => {
   const scopeInfo = configScopes.find((s) => s.id === scope)!;
   const needsRef = scope !== "global";
   // Chains and theatres come from the same lists as credential scopes
@@ -58,12 +60,12 @@ export const EditConfigurationDialog = ({ open, onOpenChange, agent, scope, row,
     session.current++;
     setRevealing(null);
     if (!open) return;
-    setRef(row?.ref ?? (scope === "global" ? GLOBAL_REF : ""));
+    setRef(row?.ref ?? (scope === "global" ? GLOBAL_REF : initialRef ?? ""));
     // Masked values aren't loaded; leaving one blank keeps the stored value
     setValues(row?.values ?? {});
     setShown({});
     setRevealed({});
-  }, [open, row, scope]);
+  }, [open, row, scope, initialRef]);
 
   const fields = agent.configFields;
   const hasStored = (f: ConfigFieldDef) => f.masked && !!row?.maskedKeys.includes(f.key);

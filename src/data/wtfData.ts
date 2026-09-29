@@ -85,3 +85,13 @@ export interface WtfData {
   screenDevices: WtfScreenDevice[];
   agents: WtfAgent[];
 }
+
+/**
+ * GET /api/theatres/:id/livewire: the Live Wire agent settings that apply at a theatre (read-only on the theatre
+ * form; edited in Fleet Management › Image Management › Live Wire › Manage Agent Configurations).
+ */
+export interface TheatreLiveWire {
+  /** The Live Wire fleet image, for linking to its configurations; null when there's no Live Wire agent. */
+  imageId: string | null;
+  configuration: WtfAgent["configuration"];
+}
