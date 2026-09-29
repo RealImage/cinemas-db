@@ -83,6 +83,20 @@ export const SCREEN_STATUS_REASON_TYPES = { Inactive: "DEACTIVATE_SCREEN", Delet
 export type StatusReasonType = (typeof SCREEN_STATUS_REASON_TYPES)[keyof typeof SCREEN_STATUS_REASON_TYPES];
 export type StatusReason = { id: string; reasonType: StatusReasonType; reason: string };
 
+export type ScreenOption = { id: string; name: string };
+/** Choices for a screen's picture fields: lookup masters and industry companies by role. */
+export type ScreenOptions = {
+  screenTypes: ScreenOption[];
+  threeDModels: ScreenOption[];
+  screenManufacturers: ScreenOption[];
+  digitalIntegrators: ScreenOption[];
+  datasatProviders: ScreenOption[];
+  adConsolidators: ScreenOption[];
+};
+
+/** A screen tracks IMAX integration only when it has an IMAX projection experience. */
+export const isImaxScreen = (experiences: string[] | undefined) => (experiences ?? []).some((x) => x.startsWith("IMAX"));
+
 export const IMAX_INTEGRATION_TYPES = ["WireTAP", "TMS", "Both"] as const;
 export type ImaxIntegrationType = (typeof IMAX_INTEGRATION_TYPES)[number];
 
@@ -107,6 +121,13 @@ export type Screen = {
   /** The reason's text, as returned by the API. */
   statusReason?: string | null;
   statusComments?: string | null;
+  /** Picture fields (ids into GET /api/screens/options). */
+  screenTypeId?: string | null;
+  screenManufacturerId?: string | null;
+  digitalIntegratorId?: string | null;
+  threeDModelIds?: string[];
+  datasatProviderIds?: string[];
+  adConsolidatorIds?: string[];
   closureNotes?: string;
   seatingCapacity?: number;
   coolingType?: string;

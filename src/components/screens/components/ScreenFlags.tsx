@@ -1,18 +1,17 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { IMAX_INTEGRATION_TYPES, type ImaxIntegrationType, type Screen } from "@/types";
+import { IMAX_INTEGRATION_TYPES, isImaxScreen, type ImaxIntegrationType, type Screen } from "@/types";
 
 type BooleanFlag = "multiThumbprintKdmScreen" | "flmManagementLock" | "autoScreenUpdateLock" | "automation";
 
 const FLAGS: { key: BooleanFlag; label: string }[] = [
-  { key: "multiThumbprintKdmScreen", label: "Multi-thumbprint KDM Screen" },
+  { key: "multiThumbprintKdmScreen", label: "Multi-thumbprint KDM Screen (dual projector)" },
   { key: "flmManagementLock", label: "FLM Screen-Device Management Lock" },
   { key: "autoScreenUpdateLock", label: "Auto Screen Update Lock" },
   { key: "automation", label: "Automation" },
 ];
 
-const isImax = (experiences: string[] | undefined) => (experiences ?? []).some((x) => x.startsWith("IMAX"));
 
 /** Every screen flag, in one place on the General tab. */
 export function ScreenFlags({ formData, setFormData, error }: {
@@ -22,8 +21,8 @@ export function ScreenFlags({ formData, setFormData, error }: {
   error?: string;
 }) {
   const set = (patch: Partial<Screen>) => setFormData((prev) => ({ ...prev, ...patch }));
-  // Like legacy, IMAX integration is offered on IMAX screens; it stays visible while switched on
-  const showImax = isImax(formData.projection?.experiences) || !!formData.imaxIntegrated;
+  // IMAX integration is tracked only on IMAX screens (the Projection tab clears it when the last IMAX experience goes)
+  const showImax = isImaxScreen(formData.projection?.experiences);
 
   return (
     <fieldset className="space-y-3 rounded-md border p-4">

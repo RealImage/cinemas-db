@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { IPAddress, Screen, ScreenDevice, StatusReason, Suite } from "@/types";
+import type { IPAddress, Screen, ScreenDevice, ScreenOptions, StatusReason, Suite } from "@/types";
 import { theatreKeys } from "./theatres";
 
 /** Device fields the IP & Suites tab edits beyond the core `ScreenDevice` type. */
@@ -19,6 +19,10 @@ export type ScreenDeviceConfigUpdate = {
   ipAddresses: IPAddress[];
   suites: SuiteConfig[];
 };
+
+/** Choices for the screen form's picture fields. */
+export const useScreenOptions = () =>
+  useQuery({ queryKey: ["screens", "options"], queryFn: () => api.get<ScreenOptions>("/screens/options"), staleTime: 5 * 60_000 });
 
 /** Reasons for deactivating and deleting a screen. */
 export const useScreenStatusReasons = (enabled = true) =>
