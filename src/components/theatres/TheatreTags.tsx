@@ -28,10 +28,13 @@ export function TagButton({ tag, onTag }: { tag: TheatreTag; onTag: (tag: Theatr
  * linked-company tags.
  */
 export function TagChips({
-  tags, facets, onAdd, onRemove, onClear,
+  tags, facets, facetsError, onRetryFacets, onAdd, onRemove, onClear,
 }: {
   tags: TheatreTag[];
   facets: TheatreFacets | undefined;
+  /** Why the tags couldn't be loaded, if they couldn't. */
+  facetsError: string | null;
+  onRetryFacets: () => void;
   onAdd: (tag: TheatreTag) => void;
   onRemove: (tag: TheatreTag) => void;
   onClear: () => void;
@@ -63,7 +66,14 @@ export function TagChips({
           <Command>
             <CommandInput placeholder="Chain, city, country or company…" />
             <CommandList className="max-h-72">
-              <CommandEmpty>{facets ? "No matching tags" : "Loading tags…"}</CommandEmpty>
+              <CommandEmpty>
+                {facetsError ? (
+                  <span className="flex flex-col items-center gap-2">
+                    <span className="text-red-500">Could not load tags: {facetsError}</span>
+                    <Button variant="outline" size="sm" onClick={onRetryFacets}>Retry</Button>
+                  </span>
+                ) : facets ? "No matching tags" : "Loading tags…"}
+              </CommandEmpty>
               {THEATRE_TAG_KINDS.map(({ value: kind, label }) => {
                 const options = (facets?.tags ?? []).filter((t) => t.kind === kind && !tags.some((a) => sameTag(a, t)));
                 if (!options.length) return null;
