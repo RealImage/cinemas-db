@@ -69,8 +69,8 @@ export function PictureFields({ formData, setFormData }: {
         });
         return (
           <div key={key} className="space-y-2">
-            <Label>{label}</Label>
-            <div className="flex flex-wrap gap-4">
+            <Label id={`${key}-label`}>{label}</Label>
+            <div role="group" aria-labelledby={`${key}-label`} className="flex flex-wrap gap-4">
               {!options && !optionsQuery.isError && <span className="text-xs text-muted-foreground">Loading…</span>}
               {options && all.length === 0 && <span className="text-xs text-muted-foreground">None in the list yet</span>}
               {all.map((o) => (

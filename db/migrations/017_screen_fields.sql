@@ -54,3 +54,10 @@ ALTER TABLE screens
   ADD COLUMN three_d_model_ids         text[] NOT NULL DEFAULT '{}',
   ADD COLUMN datasat_provider_ids      text[] NOT NULL DEFAULT '{}',
   ADD COLUMN ad_consolidator_ids       text[] NOT NULL DEFAULT '{}';
+
+-- IMAX integration is kept only on IMAX screens (as the API now enforces); clear it where no IMAX experience remains
+UPDATE screens SET imax_integrated = false, imax_integration_type = NULL
+WHERE imax_integrated AND NOT EXISTS (
+  SELECT 1 FROM jsonb_array_elements_text(
+    CASE WHEN jsonb_typeof(projection -> 'experiences') = 'array' THEN projection -> 'experiences' ELSE '[]'::jsonb END
+  ) AS x WHERE x LIKE 'IMAX%');

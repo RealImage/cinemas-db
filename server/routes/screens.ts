@@ -167,9 +167,15 @@ async function pictureFields(client: pg.PoolClient, s: Partial<Screen>) {
   const out = {} as Record<PictureKey, string | string[] | null>;
   for (const [key, source] of Object.entries(PICTURE_FIELDS) as [PictureKey, (typeof PICTURE_FIELDS)[PictureKey]][]) {
     const multiple = key.endsWith("Ids");
-    const raw = s[key];
+    const raw: unknown = s[key];
+    // Left out or null clears the field; any other shape is a client error, never a silent clear
+    if (raw !== undefined && raw !== null && (multiple
+      ? !Array.isArray(raw) || raw.some((v) => typeof v !== "string")
+      : typeof raw !== "string")) {
+      throw httpError(400, `${key} must be ${multiple ? "a list of ids" : "an id"}`);
+    }
     const ids = multiple
-      ? [...new Set((Array.isArray(raw) ? raw : []).filter((v): v is string => typeof v === "string" && v !== ""))]
+      ? [...new Set(((raw ?? []) as string[]).filter((v) => v !== ""))]
       : typeof raw === "string" && raw ? [raw] : [];
     if (ids.length) {
       const { rows } = "lookup" in source

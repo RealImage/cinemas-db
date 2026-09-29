@@ -95,7 +95,9 @@ export type ScreenOptions = {
 };
 
 /** A screen tracks IMAX integration only when it has an IMAX projection experience. */
-export const isImaxScreen = (experiences: string[] | undefined) => (experiences ?? []).some((x) => x.startsWith("IMAX"));
+/** Safe on untrusted input: anything but an array of strings has no IMAX experience. */
+export const isImaxScreen = (experiences: unknown) =>
+  Array.isArray(experiences) && experiences.some((x) => typeof x === "string" && x.startsWith("IMAX"));
 
 export const IMAX_INTEGRATION_TYPES = ["WireTAP", "TMS", "Both"] as const;
 export type ImaxIntegrationType = (typeof IMAX_INTEGRATION_TYPES)[number];
