@@ -123,6 +123,7 @@ const Chains = () => {
         {(chains) => (
           <DataTable
             data={chains}
+            exportName="Chains"
             columns={columns}
             searchPlaceholder="Search chains..."
             actions={actions}

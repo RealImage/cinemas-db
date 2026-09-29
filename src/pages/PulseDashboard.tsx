@@ -129,7 +129,7 @@ function DashboardContent({ data }: { data: PulseDashboardData }) {
 
       {/* Theatres Table */}
       <DashboardCard title="Monitored Theatres">
-        <DataTable data={monitoredTheatres} columns={theatreColumns} searchPlaceholder="Search theatres..." />
+        <DataTable data={monitoredTheatres} columns={theatreColumns} searchPlaceholder="Search theatres..." exportName="Pulse Theatres" />
       </DashboardCard>
 
       {/* Environment Monitoring Histogram */}
