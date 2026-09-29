@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { toast } from "sonner";
@@ -110,11 +110,18 @@ const AgentConfigurationsView = ({
 
 /** Configurations by scope. `?scope=chain|theatre&ref=` opens on that tab, editing (or adding) that ref's row. */
 const ConfigurationTabs = ({ agent, rows, onEditAgent }: { agent: AgentDetails; rows: AgentConfiguration[]; onEditAgent: () => void }) => {
-  const [params] = useSearchParams();
-  const linked = configScopes.find((s) => s.id === params.get("scope") && s.id !== "global");
-  const openRef = linked ? params.get("ref") ?? undefined : undefined;
+  const [params, setParams] = useSearchParams();
+  // Read the link once, then drop it from the URL so switching tabs or a reload doesn't reopen the dialog
+  const [link, setLink] = useState(() => {
+    const scope = configScopes.find((s) => s.id === params.get("scope") && s.id !== "global");
+    const ref = params.get("ref");
+    return scope && ref ? { scope: scope.id, ref } : null;
+  });
+  useEffect(() => {
+    if (params.has("scope") || params.has("ref")) setParams({}, { replace: true });
+  }, [params, setParams]);
   return (
-    <Tabs defaultValue={linked?.id ?? "global"}>
+    <Tabs defaultValue={link?.scope ?? "global"}>
       <TabsList className="flex-wrap h-auto">
         {configScopes.map((s) => (
           <TabsTrigger key={s.id} value={s.id} className="gap-2">
@@ -130,7 +137,8 @@ const ConfigurationTabs = ({ agent, rows, onEditAgent }: { agent: AgentDetails; 
             scope={s.id}
             rows={rows.filter((r) => r.scope === s.id)}
             onEditAgent={onEditAgent}
-            openRef={s.id === linked?.id ? openRef : undefined}
+            openRef={s.id === link?.scope ? link.ref : undefined}
+            onOpenRefHandled={() => setLink(null)}
           />
         </TabsContent>
       ))}

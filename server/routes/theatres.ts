@@ -23,7 +23,7 @@ export const theatres = new Hono();
 // Read shapes
 // ---------------------------------------------------------------------------
 
-/** Delivery / KDM / LiveWire form keys stored in theatres.delivery_settings. */
+/** Delivery / KDM form keys stored in theatres.delivery_settings. (Live Wire lives in the agent configurations.) */
 const DELIVERY_KEYS = [
   "deliveryAddress", "deliveryInstructions", "deliveryTimeSlots", "dcpPhysicalDeliveryMethods",
   "dcpNetworkDeliveryMethods", "dcpModemDeliveryMethods", "dcpDeliveryContacts", "sendEmailsForDCPDelivery",
@@ -741,7 +741,6 @@ theatres.delete("/:id", async (c) => {
   return c.body(null, 204);
 });
 
-/** Change history, newest first. */
 /** The Live Wire settings that apply at this theatre (theatre, else chain, else Global), read-only. */
 theatres.get("/:id/livewire", async (c) => {
   const [t] = await query<{ name: string; chain: string | null }>(
@@ -756,6 +755,7 @@ theatres.get("/:id/livewire", async (c) => {
   return c.json(result);
 });
 
+/** Change history, newest first. */
 theatres.get("/:id/logs", async (c) => {
   const id = c.req.param("id");
   const [exists] = await query("SELECT 1 FROM theatres WHERE id = $1", [id]);

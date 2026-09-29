@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { AlertTriangle, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheatreLiveWire } from "@/hooks/api/theatres";
 import { agentConfigurationLink } from "@/data/agentConfigData";
@@ -16,9 +16,22 @@ export function LiveWireSettings({ theatreId, theatreName }: { theatreId?: strin
 
   if (!theatreId) return <p className="text-sm text-muted-foreground">Save the theatre first to set up Live Wire.</p>;
   if (liveWire.isPending) {
-    return <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading Live Wire settings</p>;
+    return (
+      <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading Live Wire settings
+      </p>
+    );
   }
-  if (liveWire.isError) return <p className="text-sm text-red-500">Could not load Live Wire settings: {liveWire.error.message}</p>;
+  if (liveWire.isError) {
+    return (
+      <div className="flex flex-wrap items-center gap-3" role="alert">
+        <p className="flex items-center gap-2 text-sm text-red-500">
+          <AlertTriangle className="h-4 w-4" /> Could not load Live Wire settings: {liveWire.error.message}
+        </p>
+        <Button type="button" variant="outline" size="sm" onClick={() => liveWire.refetch()} loading={liveWire.isFetching}>Retry</Button>
+      </div>
+    );
+  }
   const { imageId, configuration } = liveWire.data;
   if (!imageId) return <p className="text-sm text-muted-foreground">There's no Live Wire agent in Image Management.</p>;
 
@@ -37,7 +50,7 @@ export function LiveWireSettings({ theatreId, theatreName }: { theatreId?: strin
         <p className="text-sm text-muted-foreground">No Live Wire settings apply to this theatre yet.</p>
       ) : (
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-          {configuration.map((c) => (
+          {set.map((c) => (
             <div key={c.field.key} className="min-w-0">
               <dt className="text-xs text-muted-foreground">{c.field.name}</dt>
               <dd className="text-sm">
