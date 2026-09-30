@@ -86,9 +86,9 @@ const PHONE = /^[0-9 +\-()]+$/;
 export const phoneError = (v: string) =>
   !PHONE.test(v) ? "Use digits, spaces and + - ( ) only" : (v.match(/\d/g)?.length ?? 0) < 4 ? "Enter at least 4 digits" : null;
 
-/** A row the user added and left empty; dropped on save rather than reported. */
-const blankPhone = (p: ChainPhone) => !p.number.trim();
-const blankOwner = (o: ChainOwner) => !o.name.trim() && !o.phone.trim();
+/** A row the user added and left entirely empty (country code too); dropped on save rather than reported. */
+const blankPhone = (p: ChainPhone) => !p.number.trim() && !p.countryCode.trim();
+const blankOwner = (o: ChainOwner) => !o.name.trim() && !o.phone.trim() && !o.countryCode.trim();
 
 /** Trimmed input with empty rows dropped: what's validated and stored. */
 export function cleanChainInput(f: ChainDetailsInput): ChainDetailsInput {
@@ -130,12 +130,13 @@ export function chainFormErrors(f: ChainDetailsInput, callingCodes: readonly str
     if (blankPhone(p)) return;
     const c = code(p.countryCode);
     if (c) errors[`phones.${i}.countryCode`] = c;
-    const n = phoneError(p.number.trim());
+    const n = p.number.trim() ? phoneError(p.number.trim()) : "Enter the phone number";
     if (n) errors[`phones.${i}.number`] = n;
   });
   f.owners.forEach((o, i) => {
     if (blankOwner(o)) return;
     if (!o.name.trim()) errors[`owners.${i}.name`] = "Owner name is required";
+    if (!o.phone.trim() && o.countryCode.trim()) errors[`owners.${i}.phone`] = "Enter the phone number, or clear the country code";
     if (o.phone.trim()) {
       const c = code(o.countryCode);
       if (c) errors[`owners.${i}.countryCode`] = c;

@@ -117,7 +117,7 @@ function parseDetails(body: unknown): ChainDetailsInput {
   const rows = <T>(key: string, label: string, fields: (keyof T & string)[]): T[] => {
     const v = b[key];
     if (v === undefined || v === null) return [];
-    if (!Array.isArray(v) || !v.every((r) => r && typeof r === "object" && fields.every((f) => r[f] == null || typeof r[f] === "string"))) {
+    if (!Array.isArray(v) || !v.every((r) => r && typeof r === "object" && !Array.isArray(r) && fields.every((f) => r[f] == null || typeof r[f] === "string"))) {
       throw httpError(400, `${label} must be a list of { ${fields.join(", ")} }`);
     }
     return v.map((r) => Object.fromEntries(fields.map((f) => [f, r[f] ?? ""])) as T);
@@ -231,17 +231,19 @@ const putChainSystems = (kind: SystemKind) => async (c: Context) => {
     if (inUse.length) {
       throw httpError(409, `Still in use by this chain's theatres: ${inUse.map((u) => `${u.name} (${u.theatres})`).join(", ")}. Change those theatres first.`);
     }
-    const names = async () => (await client.query<Chain>(`${CHAIN_SELECT} WHERE c.id = $1`, [id]))
-      .rows[0][listKey]?.map((t) => t.name).join(", ") || null;
-    const before = await names();
+    // Logged when the set of linked ids changes; the names are only what the log shows
+    const linked = async () => (await client.query<Chain>(`${CHAIN_SELECT} WHERE c.id = $1`, [id])).rows[0][listKey] ?? [];
+    const ids = (list: { id: string }[]) => list.map((t) => t.id).sort().join(",");
+    const names = (list: { name: string }[]) => list.map((t) => t.name).join(", ") || null;
+    const before = await linked();
     await client.query(`DELETE FROM ${table} WHERE chain_id = $1 AND NOT (device_id = ANY($2))`, [id, deviceIds]);
     await client.query(
       `INSERT INTO ${table} (chain_id, device_id, updated_by) SELECT $1, unnest($2::text[]), $3 ON CONFLICT DO NOTHING`,
       [id, deviceIds, CURRENT_USER]);
     await client.query("UPDATE chains SET updated_by = $2 WHERE id = $1", [id, CURRENT_USER]);
-    const after = await names();
-    if (before !== after) {
-      await writeLogs(client, id, [{ section: "Theatre Systems", field: label, oldValue: before, newValue: after }]);
+    const after = await linked();
+    if (ids(before) !== ids(after)) {
+      await writeLogs(client, id, [{ section: "Theatre Systems", field: label, oldValue: names(before), newValue: names(after) }]);
     }
     const { rows: [updated] } = await client.query<Chain>(`${CHAIN_SELECT} WHERE c.id = $1`, [id]);
     return updated;

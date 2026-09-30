@@ -54,12 +54,25 @@ function ChainEditor({ chain, tab, setTab }: { chain: ChainDetails; tab: TabId; 
   const save = useUpdateChain();
   const dirty = JSON.stringify(form) !== JSON.stringify(initial);
 
-  // Leaving the page with unsaved edits (reload, close tab) asks the browser to confirm
+  // Leaving the page with unsaved edits asks first: a reload or closed tab through the browser, and a click on any
+  // in-app link (the Back link, the sidebar) through a confirm. The app's BrowserRouter has no navigation blocker,
+  // so the browser's own Back button within the app isn't covered.
   useEffect(() => {
     if (!dirty) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    const onClick = (e: MouseEvent) => {
+      const link = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!link || link.target === "_blank" || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      const to = new URL(link.href, window.location.href);
+      if (to.origin !== window.location.origin || to.pathname === window.location.pathname) return;
+      if (!window.confirm("Discard your unsaved changes to this chain?")) { e.preventDefault(); e.stopPropagation(); }
+    };
     window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("click", onClick, true);
+    };
   }, [dirty]);
 
   // Country codes are only checked here once they've loaded; the server checks them regardless
@@ -131,7 +144,15 @@ function ChainEditor({ chain, tab, setTab }: { chain: ChainDetails; tab: TabId; 
         <ChainBasicInformation form={form} onChange={onChange} errors={errors} companyName={chain.companyName ?? ""} />
       </TabsContent>
       <TabsContent value="contact" className="mt-4">
-        <ChainContactInformation form={form} onChange={onChange} errors={errors} callingCodes={callingCodes.data} />
+        {callingCodes.isError && (
+          <p className="mb-3 text-sm text-red-500" role="alert">
+            Could not load country codes: {callingCodes.error.message}{" "}
+            <button type="button" className="underline" onClick={() => callingCodes.refetch()}>Retry</button>
+          </p>
+        )}
+        <ChainContactInformation
+          form={form} onChange={onChange} errors={errors} callingCodes={callingCodes.data} codesUnavailable={callingCodes.isError}
+        />
       </TabsContent>
       <TabsContent value="systems" className="mt-4"><ChainSystemsTab chain={chain} /></TabsContent>
       <TabsContent value="device-credentials" className="mt-4"><ChainDeviceCredentialsTab chain={chain} /></TabsContent>

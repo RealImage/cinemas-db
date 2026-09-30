@@ -114,12 +114,16 @@ function RowList<T>({ title, rows, empty, addLabel, onChange, render }: {
   );
 }
 
-export function ChainContactInformation({ form, onChange, errors, callingCodes }: SectionProps & { callingCodes: CallingCode[] | undefined }) {
+export function ChainContactInformation({ form, onChange, errors, callingCodes, codesUnavailable = false }: SectionProps & {
+  callingCodes: CallingCode[] | undefined;
+  /** The codes failed to load: the pickers stop showing "Loading" (the page shows the error and a Retry). */
+  codesUnavailable?: boolean;
+}) {
   const codeOptions: ComboboxOption[] = (callingCodes ?? []).map((c) => ({ value: c.code, label: `+${c.code}`, description: c.countries.join(", ") }));
   const codeField = (key: string, value: string, set: (v: string) => void, label: string) => (
     <div className="w-28 shrink-0 space-y-1">
       <Combobox value={value.replace(/^\+/, "") || null} onChange={(v) => set(v ?? "")} options={codeOptions}
-        loading={!callingCodes} placeholder="Code" searchPlaceholder="Code or country" aria-label={label}
+        loading={!callingCodes && !codesUnavailable} placeholder={codesUnavailable ? "Unavailable" : "Code"} searchPlaceholder="Code or country" aria-label={label}
         aria-invalid={!!errors[key]} aria-describedby={errors[key] ? `chain-err-${key}` : undefined} />
       <FieldError errors={errors} name={key} />
     </div>

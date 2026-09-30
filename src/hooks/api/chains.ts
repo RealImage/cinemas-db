@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { agentConfigKeys } from "./agentConfigs";
+import { credentialKeys } from "./credentials";
 import type { Chain } from "@/types";
 import type {
   CallingCode, ChainDetails, ChainDetailsInput, ChainDeviceCredentials, ChainLogEntry, ChainSystems, ChainTheatre,
@@ -49,8 +51,10 @@ export const useUpdateChain = () => {
     onSuccess: (chain) => {
       qc.setQueryData(chainKeys.detail(chain.id), chain);
       qc.invalidateQueries({ queryKey: chainKeys.all });
-      // Theatres show the chain's name
+      // Theatres show the chain's name; a rename also renames credential / agent-config refs
       qc.invalidateQueries({ queryKey: ["theatres"] });
+      qc.invalidateQueries({ queryKey: credentialKeys.refOptions() });
+      qc.invalidateQueries({ queryKey: agentConfigKeys.all });
     },
   });
 };
