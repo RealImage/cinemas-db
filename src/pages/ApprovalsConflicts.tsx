@@ -15,6 +15,7 @@ interface DashboardItem {
 const PATHS: Record<string, string> = {
   "Company Claims": "/approvals-conflicts/company-claims",
   "Partners": "/approvals-conflicts/partners",
+  "Theatre Deletions": "/approvals-conflicts/theatre-deletions",
   "Third-party Theatre Updates: FLM": "/theatres/flm-feeds",
   "WireTAPs": "/qube-appliances/wiretap",
 };

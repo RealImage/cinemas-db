@@ -6,7 +6,7 @@ import type { Filter, SortDirection } from "@/components/ui/data-table/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Theatre } from "@/types";
 import { useTheatreColumns, useEnhancedColumns, type TheatreListRow } from "./TheatreColumns";
-import { getTheatreActions, useTheatreActions } from "./TheatreActions";
+import { getTheatreActions, useTheatreActions, type TheatreDeleteAction } from "./TheatreActions";
 import { TagChips } from "./TheatreTags";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { fetchTheatreExport, useTheatreFacets, useTheatrePage } from "@/hooks/api/theatres";
@@ -19,7 +19,7 @@ type TheatreTableProps = {
   onViewLogs: (theatre: Theatre) => void;
   onViewWtf: (theatre: Theatre) => void;
   onToggleStatus: (theatre: Theatre) => void;
-  onDelete: (theatre: Theatre) => void;
+  onDelete: (theatre: Theatre, action: TheatreDeleteAction) => void;
 };
 
 /** Column filters and the server parameter each one sets. */

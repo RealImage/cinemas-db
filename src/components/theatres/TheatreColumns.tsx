@@ -173,7 +173,8 @@ export const useTheatreColumns = ({ onTag }: { onTag: (tag: TheatreTag) => void 
 export const useEnhancedColumns = (columns: Column<TheatreListRow>[], facets: TheatreFacets | undefined) => {
   return React.useMemo(() => {
     const filters: Record<string, string[]> = {
-      Status: ["Active", "Inactive", "Closed"],
+      // Deleted appears only while some theatre is soft-deleted (from the server)
+      Status: facets?.statuses?.length ? facets.statuses : ["Active", "Inactive", "Closed"],
       Listing: [...THEATRE_LISTINGS, LISTING_NOT_SET],
       "Chain Name": facets?.chains ?? [],
       Company: facets?.companies ?? [],

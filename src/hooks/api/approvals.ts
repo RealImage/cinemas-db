@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { CompanyClaim } from "@/data/companyClaimsData";
 import type { OperationsRegion, PartnerRequest } from "@/data/partnersData";
+import type { TheatreDeletionRequest } from "@/types";
 
 export const approvalKeys = {
   all: ["approvals"] as const,
@@ -10,6 +11,7 @@ export const approvalKeys = {
   partners: ["approvals", "partners"] as const,
   regionOptions: ["approvals", "partners", "region-options"] as const,
   regions: (partnerId: string) => ["approvals", "partners", partnerId, "regions"] as const,
+  theatreDeletions: (state: TheatreDeletionState) => ["approvals", "theatre-deletions", state] as const,
 };
 
 export type DashboardCount = { label: string; count: number };
@@ -69,5 +71,29 @@ export const useReviewPartnerRequest = () => {
     mutationFn: ({ id, decision }: { id: string; decision: "accept" | "reject" }) =>
       api.post<PartnerRequest>(`/approvals/partners/${id}/${decision}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: approvalKeys.all }),
+  });
+};
+
+// Theatre deletions -------------------------------------------------------------
+
+/** pending: waiting for approval. deleted: approved, so the theatre is soft-deleted (restore or delete permanently). */
+export type TheatreDeletionState = "pending" | "deleted";
+
+export const useTheatreDeletions = (state: TheatreDeletionState) =>
+  useQuery({
+    queryKey: approvalKeys.theatreDeletions(state),
+    queryFn: () => api.get<TheatreDeletionRequest[]>(`/approvals/theatre-deletions?state=${state}`),
+  });
+
+/** Approve (soft-deletes the theatre) or reject a deletion request. Rejecting needs comments. */
+export const useReviewTheatreDeletion = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, decision, comments }: { id: string; decision: "approve" | "reject"; comments: string }) =>
+      api.post<TheatreDeletionRequest>(`/approvals/theatre-deletions/${id}/${decision}`, { comments }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: approvalKeys.all });
+      qc.invalidateQueries({ queryKey: ["theatres"] });
+    },
   });
 };

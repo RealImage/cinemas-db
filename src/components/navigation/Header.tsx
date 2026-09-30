@@ -71,6 +71,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
     if (path === "/approvals-conflicts") return "Approvals & Conflicts";
     if (path === "/approvals-conflicts/company-claims") return "Company Claims";
     if (path === "/approvals-conflicts/partners") return "Partners";
+    if (path === "/approvals-conflicts/theatre-deletions") return "Theatre Deletions";
 
     if (path === "/reports") return "Reports";
 

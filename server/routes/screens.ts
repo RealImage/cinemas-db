@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type pg from "pg";
 import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
+import { assertNotDeleted } from "../theatreDeletion";
 import { IMAX_INTEGRATION_TYPES, SCREEN_STATUS_REASON_TYPES, isImaxScreen, type IPAddress, type Screen, type ScreenDevice, type ScreenOptions, type StatusReason, type Suite, type TemporaryClosure } from "../../src/types";
 import { normalizeScreenNumber, screenIdentityErrors } from "../../src/data/screenRules";
 
@@ -295,7 +296,7 @@ screens.get("/options", async (c) => {
   });
 });
 
-/** Reasons for deactivating and deleting a screen, in display order. */
+/** Reasons for deactivating and deleting a screen, and for deleting a theatre, in display order. */
 screens.get("/status-reasons", async (c) => c.json(await query<StatusReason>(
   `SELECT id, reason_type AS "reasonType", reason FROM status_reasons ORDER BY reason_type, sort_order, reason`)));
 
@@ -316,8 +317,11 @@ screens.put("/device-config", async (c) => {
   await transaction(async (client) => {
     const touched = new Set<string>();
     for (const item of items) {
-      const { rows } = await client.query<{ theatre_id: string }>("SELECT theatre_id FROM screens WHERE id = $1", [item.id]);
+      const { rows } = await client.query<{ theatre_id: string; theatre_status: string }>(
+        `SELECT s.theatre_id, t.status AS theatre_status FROM screens s JOIN theatres t ON t.id = s.theatre_id
+         WHERE s.id = $1 FOR SHARE OF t`, [item.id]);
       if (rows.length === 0) throw notFound(`Screen ${item.id}`);
+      assertNotDeleted({ status: rows[0].theatre_status });
       await saveDeviceConfig(client, item.id, item);
       await client.query("UPDATE screens SET updated_by = $2 WHERE id = $1", [item.id, CURRENT_USER]);
       touched.add(rows[0].theatre_id);

@@ -6,10 +6,13 @@ import { SCREEN_JSON, SCREEN_ORDER, saveScreen } from "./screens";
 import { screenListError } from "../../src/data/screenRules";
 import { SYSTEM_NAME, theatreSystemName } from "../theatreSystems";
 import { configurationsFor } from "./wtf";
+import {
+  DELETION_SELECT, PERMANENT_DELETE_FROM, assertNotDeleted, commentsField, formatUtc, lockTheatre,
+} from "../theatreDeletion";
 import { LIVE_WIRE_AGENT, type ConfigFieldDef } from "../../src/data/agentConfigData";
 import type { TheatreLiveWire } from "../../src/data/wtfData";
 import {
-  THEATRE_LISTINGS, type Company, type DashboardStats, type Screen, type Theatre, type TheatreMapping, type TheatreSystemOptions,
+  THEATRE_DELETION_REASON_TYPE, THEATRE_LISTINGS, type Company, type TheatreDeletionRequest, type DashboardStats, type Screen, type Theatre, type TheatreMapping, type TheatreSystemOptions,
 } from "../../src/types";
 import type { WireTAPDevice } from "../../src/types/wireTAP";
 import { formatTheatreAddress, theatreAlternateNames, type TheatreSummary } from "../../src/data/theatreSummary";
@@ -56,6 +59,10 @@ const THEATRE_COLUMNS = `
   t.delivery_settings AS "deliverySettings",
   t.created_at AS "createdAt", t.updated_at AS "updatedAt", t.created_by AS "createdBy", t.updated_by AS "updatedBy",
   (SELECT count(*) FROM screens s WHERE s.theatre_id = t.id AND s.status <> 'Deleted') AS "screenCount",
+  t.deleted_at AS "deletedAt", t.deleted_by AS "deletedBy", ${PERMANENT_DELETE_FROM} AS "permanentDeleteFrom",
+  (SELECT json_build_object('id', r.id, 'reason', sr.reason, 'requestedBy', r.requested_by, 'requestedAt', r.requested_at)
+     FROM theatre_deletion_requests r JOIN status_reasons sr ON sr.id = r.reason_id
+     WHERE r.theatre_id = t.id AND r.status = 'Pending') AS "pendingDeletion",
   coalesce((SELECT json_agg(json_build_object('id', m.id, 'domain', m.domain, 'theatreId', m.external_id)
                             ORDER BY m.domain, m.external_id)
             FROM theatre_mappings m WHERE m.theatre_id = t.id), '[]') AS "theatreMappings",
@@ -586,7 +593,8 @@ function theatreListQuery(c: Context) {
   const bind = (v: unknown) => { params.push(v); return `$${params.length}`; };
 
   const ctes = rankedSearch(c.req.query("q") ?? "", searchMode(c.req.query("mode")), params);
-  const where = ["t.status <> 'Deleted'"];
+  // Deleted (soft-deleted) theatres are listed only when the status filter asks for them
+  const where = c.req.queries("status")?.includes("Deleted") ? [] : ["t.status <> 'Deleted'"];
   const oneOf = (name: string, column: string) => {
     const values = c.req.queries(name)?.filter(Boolean);
     if (values?.length) where.push(`${column} = ANY(${bind(values)})`);
@@ -610,7 +618,7 @@ function theatreListQuery(c: Context) {
   const dir = c.req.query("dir") === "desc" ? "DESC" : "ASC";
   const order = [sort ? `${LIST_SORTS[sort]} ${dir} NULLS LAST` : ctes ? "r.score DESC" : "", "lower(t.name)", "t.id"].filter(Boolean);
 
-  const from = `${THEATRE_FROM}${ctes ? " JOIN ranked r ON r.id = t.id" : ""} WHERE ${where.join(" AND ")}`;
+  const from = `${THEATRE_FROM}${ctes ? " JOIN ranked r ON r.id = t.id" : ""} WHERE ${where.join(" AND ") || "true"}`;
   const withClause = ctes ? `WITH ${ctes} ` : "";
   return {
     /** How many theatres match. */
@@ -667,7 +675,9 @@ theatres.get("/facets", async (c) => {
       UNION ALL SELECT id, 'integrator', unnest(exhibitor_integrator_companies) FROM live
       UNION ALL SELECT id, 'adIntegrator', unnest(ad_integrators) FROM live)
     SELECT
-      (SELECT coalesce(json_agg(DISTINCT status), '[]') FROM live) AS statuses,
+      -- Deleted is offered too while any theatre is soft-deleted, to find it again (restore / delete permanently)
+      (SELECT coalesce(json_agg(DISTINCT status), '[]') FROM (SELECT status FROM live UNION
+         SELECT status FROM theatres WHERE status = 'Deleted') s) AS statuses,
       (SELECT coalesce(json_agg(DISTINCT chain_name) FILTER (WHERE chain_name <> ''), '[]') FROM live) AS chains,
       (SELECT coalesce(json_agg(DISTINCT company_name) FILTER (WHERE company_name <> ''), '[]') FROM live) AS companies,
       (SELECT coalesce(json_agg(json_build_object('kind', kind, 'value', value, 'count', n) ORDER BY kind, lower(value)), '[]')
@@ -738,8 +748,8 @@ theatres.put("/:id", async (c) => {
   validate(body, false);
   try {
     const theatre = await transaction(async (client) => {
-      const before = await loadTheatre(id, client);
-      if (!before) throw notFound("Theatre");
+      assertNotDeleted(await lockTheatre(client, id));
+      const before = (await loadTheatre(id, client))!;
       await applyTheatre(client, id, body);
       const after = (await loadTheatre(id, client))!;
       await writeLogs(client, id, diffLogs(before, after));
@@ -758,20 +768,82 @@ theatres.patch("/:id/status", async (c) => {
   const { status } = await c.req.json<{ status?: string }>();
   if (!status || !STATUSES.includes(status)) throw httpError(400, `Status must be one of ${STATUSES.join(", ")}`);
   const theatre = await transaction(async (client) => {
-    const { rows } = await client.query<{ status: string }>("SELECT status FROM theatres WHERE id = $1 FOR UPDATE", [id]);
-    if (rows.length === 0) throw notFound("Theatre");
+    const theatre = await lockTheatre(client, id);
+    assertNotDeleted(theatre);
     await client.query("UPDATE theatres SET status = $2, updated_by = $3 WHERE id = $1", [id, status, CURRENT_USER]);
-    if (rows[0].status !== status) {
-      await writeLogs(client, id, [{ section: "General Information", action: "Updated", oldValue: rows[0].status, newValue: status }]);
+    if (theatre.status !== status) {
+      await writeLogs(client, id, [{ section: "General Information", action: "Updated", oldValue: theatre.status, newValue: status }]);
     }
     return loadTheatre(id, client);
   });
   return c.json(theatre);
 });
 
+// ---------------------------------------------------------------------------
+// Routes: deletion (request → approval in Approvals & Conflicts → restore, or permanent delete 48 hours later)
+// ---------------------------------------------------------------------------
+
+/** Ask for a theatre to be deleted. Body: { reasonId, comments? }. An approver then approves or rejects it. */
+theatres.post("/:id/deletion-request", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json<{ reasonId?: unknown; comments?: unknown }>();
+  if (typeof body.reasonId !== "string" || !body.reasonId) throw httpError(400, "Choose a reason for deleting the theatre");
+  const comments = commentsField(body.comments);
+  const request = await transaction(async (client) => {
+    const theatre = await lockTheatre(client, id);
+    if (theatre.status === "Deleted") throw httpError(409, "This theatre is already deleted");
+    if (theatre.status === "Active") throw httpError(409, "Deactivate or close the theatre before requesting its deletion");
+    const { rows: [open] } = await client.query<{ requested_by: string }>(
+      "SELECT requested_by FROM theatre_deletion_requests WHERE theatre_id = $1 AND status = 'Pending'", [id]);
+    if (open) throw httpError(409, `${open.requested_by} has already requested this theatre's deletion; it's waiting for approval`);
+    const { rows: [reason] } = await client.query<{ reason: string; reason_type: string }>(
+      "SELECT reason, reason_type FROM status_reasons WHERE id = $1", [body.reasonId]);
+    if (!reason || reason.reason_type !== THEATRE_DELETION_REASON_TYPE) throw httpError(400, "That isn't a reason for deleting a theatre");
+    const { rows: [{ id: requestId }] } = await client.query<{ id: string }>(
+      `INSERT INTO theatre_deletion_requests (theatre_id, reason_id, comments, requested_by)
+       VALUES ($1, $2, $3, $4) RETURNING id`, [id, body.reasonId, comments || null, CURRENT_USER]);
+    await writeLogs(client, id, [{
+      section: "General Information", action: "Deletion Requested",
+      newValue: comments ? `${reason.reason}: ${comments}` : reason.reason,
+    }]);
+    return (await client.query<TheatreDeletionRequest>(`${DELETION_SELECT} WHERE r.id = $1`, [requestId])).rows[0];
+  });
+  return c.json(request, 201);
+});
+
+/** Undo a soft delete (before the theatre is deleted permanently): back to its status before the delete. */
+theatres.post("/:id/restore", async (c) => {
+  const id = c.req.param("id");
+  const theatre = await transaction(async (client) => {
+    const t = await lockTheatre(client, id);
+    if (t.status !== "Deleted") throw httpError(409, "This theatre isn't deleted");
+    const { rows: [restored] } = await client.query<{ status: string }>(
+      `UPDATE theatres SET status = coalesce(status_before_delete, 'Inactive'), status_before_delete = NULL,
+         deleted_at = NULL, deleted_by = NULL, updated_by = $2
+       WHERE id = $1 RETURNING status`, [id, CURRENT_USER]);
+    await client.query(
+      "UPDATE theatre_deletion_requests SET status = 'Restored' WHERE theatre_id = $1 AND status = 'Approved'", [id]);
+    await writeLogs(client, id, [{ section: "General Information", action: "Restored", oldValue: "Deleted", newValue: restored.status }]);
+    return loadTheatre(id, client);
+  });
+  return c.json(theatre);
+});
+
+/**
+ * Delete a theatre permanently, with its screens, identifiers and change history (all cascade from theatres).
+ * Only a soft-deleted theatre, and only THEATRE_PERMANENT_DELETE_HOURS after its deletion was approved.
+ */
 theatres.delete("/:id", async (c) => {
-  const rows = await query("DELETE FROM theatres WHERE id = $1 RETURNING id", [c.req.param("id")]);
-  if (rows.length === 0) throw notFound("Theatre");
+  const id = c.req.param("id");
+  await transaction(async (client) => {
+    const t = await lockTheatre(client, id);
+    if (t.status !== "Deleted") {
+      throw httpError(409, "This theatre hasn't been deleted. Request deletion and get it approved first.");
+    }
+    const { rows: [due] } = await client.query<{ due: boolean }>("SELECT now() >= $1::timestamptz AS due", [t.permanent_from]);
+    if (!due.due) throw httpError(409, `This theatre can be deleted permanently from ${formatUtc(t.permanent_from!)}`);
+    await client.query("DELETE FROM theatres WHERE id = $1", [id]);
+  });
   return c.body(null, 204);
 });
 
@@ -818,8 +890,7 @@ theatres.post("/:id/wiretap-devices", async (c) => {
   const { deviceId } = await c.req.json<{ deviceId?: string }>();
   if (!deviceId) throw httpError(400, "deviceId is required");
   await transaction(async (client) => {
-    const { rows: t } = await client.query("SELECT 1 FROM theatres WHERE id = $1", [id]);
-    if (t.length === 0) throw notFound("Theatre");
+    assertNotDeleted(await lockTheatre(client, id));
     const { rows } = await client.query<{ theatre_id: string | null; mapping_status: string; pull_out_status: string }>(
       "SELECT theatre_id, mapping_status, pull_out_status FROM wiretap_devices WHERE id = $1 FOR UPDATE", [deviceId],
     );
@@ -843,12 +914,15 @@ theatres.post("/:id/wiretap-devices/:deviceId/pull-out", async (c) => {
   const { id, deviceId } = c.req.param();
   const { reason, comments } = await c.req.json<{ reason?: string; comments?: string }>();
   if (!reason?.trim()) throw httpError(400, "A pull-out reason is required");
-  const rows = await query(
+  const rows = await transaction(async (client) => {
+    assertNotDeleted(await lockTheatre(client, id));
+    return (await client.query(
     `UPDATE wiretap_devices SET pull_out_status = 'Pulled Out', mapping_status = 'Unmapped',
             pull_out_date = current_date, pull_out_reason = $3, updated_by = $4
      WHERE id = $1 AND theatre_id = $2 AND pull_out_status <> 'Pulled Out' RETURNING id`,
     [deviceId, id, comments?.trim() ? `${reason.trim()}: ${comments.trim()}` : reason.trim(), CURRENT_USER],
-  );
+    )).rows;
+  });
   if (rows.length === 0) throw notFound("Installed WireTAP device at this theatre");
   const [device] = await query<WireTAPDevice>(`SELECT ${WIRETAP_COLUMNS} ${WIRETAP_FROM} WHERE d.id = $1`, [deviceId]);
   return c.json(device);

@@ -24,8 +24,8 @@ export type ScreenDeviceConfigUpdate = {
 export const useScreenOptions = () =>
   useQuery({ queryKey: ["screens", "options"], queryFn: () => api.get<ScreenOptions>("/screens/options"), staleTime: 5 * 60_000 });
 
-/** Reasons for deactivating and deleting a screen. */
-export const useScreenStatusReasons = (enabled = true) =>
+/** The status reason lists: deactivating / deleting a screen, deleting a theatre (filter by reasonType). */
+export const useStatusReasons = (enabled = true) =>
   useQuery({
     queryKey: ["screens", "status-reasons"],
     queryFn: () => api.get<StatusReason[]>("/screens/status-reasons"),
