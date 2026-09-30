@@ -1,9 +1,17 @@
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { HelpCircle, MenuIcon } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { MenuIcon } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { common } from "@/i18n/common";
+import { ArgusIcon } from "@/components/argus/ArgusIcon";
+import { useArgus } from "@/components/argus/argusState";
+import { ARGUS_PANEL_ID, ARGUS_TOGGLE_ID } from "@/components/argus/ArgusPanel";
+
+/** The Ask Argus shortcut as this platform writes it. */
+const ARGUS_SHORTCUT = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘I" : "Ctrl+I";
 
 interface HeaderProps {
   sidebarOpen: boolean;
@@ -13,6 +21,7 @@ interface HeaderProps {
 export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
   const location = useLocation();
   const isMobile = useIsMobile();
+  const argus = useArgus();
   
   const getPageTitle = () => {
     const path = location.pathname;
@@ -115,14 +124,25 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
           {getPageTitle()}
         </div>
         <div className="flex items-center space-x-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="text-xs h-8"
-          >
-            <HelpCircle className="mr-1 h-4 w-4" />
-            Help
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                id={ARGUS_TOGGLE_ID}
+                variant="outline"
+                size="sm"
+                className={cn("text-xs h-8", argus.open && "bg-purple-50 text-purple-600")}
+                onClick={argus.toggle}
+                aria-expanded={argus.open}
+                aria-controls={argus.open ? ARGUS_PANEL_ID : undefined}
+              >
+                <ArgusIcon className="mr-1 h-4 w-4" />
+                Ask Argus
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {argus.open ? common.close : "Ask Argus"} <kbd className="ml-1 font-sans text-grey-300">{ARGUS_SHORTCUT}</kbd>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </header>
