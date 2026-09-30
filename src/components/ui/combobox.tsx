@@ -27,6 +27,7 @@ interface ComboboxProps {
   className?: string;
   "aria-invalid"?: boolean;
   "aria-label"?: string;
+  "aria-describedby"?: string;
 }
 
 /**
@@ -63,6 +64,7 @@ export const Combobox = ({
             aria-expanded={open}
             aria-invalid={aria["aria-invalid"]}
             aria-label={aria["aria-label"]}
+            aria-describedby={aria["aria-describedby"]}
             disabled={disabled || loading}
             className={cn(
               "flex h-[2.125rem] w-full items-center justify-between gap-1 rounded-sm border border-input bg-card px-2 py-1 text-left text-sm leading-5",

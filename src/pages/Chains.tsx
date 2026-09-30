@@ -1,10 +1,9 @@
 
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2, Monitor } from "lucide-react";
-import { ChainTmsDialog } from "@/components/chains/ChainTmsDialog";
+import { Plus, Edit, Trash2 } from "lucide-react";
 import { QueryState } from "@/components/ui/query-state";
 import { useChains, useDeleteChain } from "@/hooks/api/chains";
 import { Chain } from "@/types";
@@ -18,14 +17,14 @@ const optionsFor = (key: keyof Chain) => (rows: Chain[]) =>
 const Chains = () => {
   const chainsQuery = useChains();
   const deleteChain = useDeleteChain();
-  const [tmsChain, setTmsChain] = useState<Chain | null>(null);
+  const navigate = useNavigate();
   
   const handleCreateChain = () => {
     toast.info("Chain creation will be implemented in a future update");
   };
   
   const handleEditChain = (chain: Chain) => {
-    toast.info(`Editing chain: ${chain.name}`);
+    navigate(`/chains/${chain.id}`);
   };
   
   const handleDeleteChain = (chain: Chain) => {
@@ -92,11 +91,6 @@ const Chains = () => {
       onClick: handleEditChain
     },
     {
-      label: "Theatre Management Systems",
-      icon: <Monitor className="h-4 w-4" />,
-      onClick: (chain: Chain) => setTmsChain(chain),
-    },
-    {
       label: "Delete",
       icon: <Trash2 className="h-4 w-4" />,
       onClick: handleDeleteChain
@@ -130,8 +124,6 @@ const Chains = () => {
           />
         )}
       </QueryState>
-
-      <ChainTmsDialog chain={tmsChain} onOpenChange={(open) => { if (!open) setTmsChain(null); }} />
     </motion.div>
   );
 };

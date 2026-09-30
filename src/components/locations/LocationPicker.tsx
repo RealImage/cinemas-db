@@ -117,6 +117,7 @@ export function LocationPicker({
   disabled = false,
   invalid = false,
   "aria-label": ariaLabel,
+  "aria-describedby": describedBy,
 }: {
   id?: string;
   entity: LocationEntity;
@@ -129,6 +130,7 @@ export function LocationPicker({
   disabled?: boolean;
   invalid?: boolean;
   "aria-label"?: string;
+  "aria-describedby"?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -136,7 +138,7 @@ export function LocationPicker({
       <div className="relative w-full">
         <PopoverTrigger asChild>
           <button id={id} type="button" role="combobox" aria-expanded={open} aria-invalid={invalid} aria-label={ariaLabel}
-            disabled={disabled} className={cn(triggerClass, clearable && value && "pr-12")}>
+            aria-describedby={describedBy} disabled={disabled} className={cn(triggerClass, clearable && value && "pr-12")}>
             <span className={cn("truncate", !value && "text-grey-300")}>{value?.label ?? placeholder}</span>
             <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
           </button>
