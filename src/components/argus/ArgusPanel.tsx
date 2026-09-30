@@ -1,5 +1,6 @@
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { AlertTriangle, ArrowUp, Check, ChevronRight, Loader2, SquarePen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,36 +36,49 @@ export function ArgusPanel() {
   const { open, setOpen } = useArgus();
   const isMobile = useIsMobile();
 
-  const close = () => {
+  const close = React.useCallback(() => {
     setOpen(false);
     document.getElementById(ARGUS_TOGGLE_ID)?.focus();
-  };
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.stopPropagation();
+  }, [setOpen]);
+
+  // On desktop the page stays usable beside the panel, so Escape closes it wherever focus is, unless it's closing
+  // something else first (a dialog, menu or popover handles Escape itself and marks the event handled)
+  React.useEffect(() => {
+    if (!open || isMobile) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (document.querySelector('[role="dialog"][data-state="open"], [role="menu"][data-state="open"], [data-radix-popper-content-wrapper]')) return;
       close();
-    }
-  };
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, isMobile, close]);
+
+  if (isMobile) {
+    // A modal sheet: Radix traps focus, hides the page from assistive technology and closes on Escape
+    return (
+      <DialogPrimitive.Root open={open} onOpenChange={(next) => !next && setOpen(false)}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Content
+            id={ARGUS_PANEL_ID}
+            aria-describedby={undefined}
+            className="fixed inset-0 z-50 bg-card data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right"
+            onCloseAutoFocus={(e) => {
+              e.preventDefault();
+              document.getElementById(ARGUS_TOGGLE_ID)?.focus();
+            }}
+          >
+            <DialogPrimitive.Title className="sr-only">Ask Argus</DialogPrimitive.Title>
+            <ArgusChat onClose={close} />
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+    );
+  }
 
   return (
     <AnimatePresence initial={false}>
-      {open && (isMobile ? (
-        <motion.aside
-          key="mobile"
-          id={ARGUS_PANEL_ID}
-          role="dialog"
-          aria-modal
-          aria-label="Ask Argus"
-          initial={{ x: "100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "100%" }}
-          transition={{ type: "tween", duration: 0.25 }}
-          className="fixed inset-0 z-50 bg-card"
-          onKeyDown={onKeyDown}
-        >
-          <ArgusChat onClose={close} />
-        </motion.aside>
-      ) : (
+      {open && (
         <motion.aside
           key="desktop"
           id={ARGUS_PANEL_ID}
@@ -74,13 +88,12 @@ export function ArgusPanel() {
           exit={{ width: 0 }}
           transition={{ type: "tween", duration: 0.25 }}
           className="sticky top-0 h-screen shrink-0 overflow-hidden border-l border-border bg-card"
-          onKeyDown={onKeyDown}
         >
           <div className="h-full" style={{ width: PANEL_WIDTH }}>
             <ArgusChat onClose={close} />
           </div>
         </motion.aside>
-      ))}
+      )}
     </AnimatePresence>
   );
 }

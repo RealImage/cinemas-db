@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { stream } from "hono/streaming";
+import { getConnInfo } from "@hono/node-server/conninfo";
 import { query } from "../db";
 import { httpError } from "../http";
 import { STATUSES, THEATRE_FROM, loadTheatre, rankedSearch, validate as validateTheatre, type TheatreInput } from "./theatres";
@@ -192,7 +193,7 @@ const TOOLS: Record<string, Tool> = {
       const found = await findTheatre(str(input.ref));
       if (found.candidates) return { ambiguous: true, candidates: found.candidates };
       const t = (await loadTheatre(found.id))!;
-      const screens = t.screens ?? [];
+      const screens = (t.screens ?? []).filter((s) => s.status !== "Deleted");
       return {
         theatre: { id: t.id, name: t.name, link: theatreLink(t.id) },
         total: screens.length,
@@ -239,7 +240,7 @@ const TOOLS: Record<string, Tool> = {
       return {
         id: ch.id, name: ch.name, displayName: ch.displayName, company: ch.companyName, status: ch.status,
         city: ch.cityLabel, postalCode: ch.postalCode, area: ch.area, headOfficeAddress: ch.headOfficeAddress,
-        emails: ch.emails, owners: ch.owners.map((o) => o.name),
+        emails: ch.emails, phones: ch.phones.map((p) => `+${p.countryCode} ${p.number}`), owners: ch.owners.map((o) => o.name),
         theatreCount: ch.theatreCount, theatresByCountry: byCountry,
         tms: (ch.tms ?? []).map((x) => x.name), ticketingSystems: (ch.ticketingSystems ?? []).map((x) => x.name),
         updatedAt: ch.updatedAt, link: chainLink(ch.id),
@@ -340,7 +341,7 @@ async function propose(kind: ArgusProposalKind, input: ToolInput, ctx: ToolConte
   const raw = input.changes;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new ToolError("changes must be an object of field → new value");
   const labels: Record<string, string> = ARGUS_EDITABLE_FIELDS[kind];
-  const unknown = Object.keys(raw).filter((f) => !(f in labels));
+  const unknown = Object.keys(raw).filter((f) => !Object.hasOwn(labels, f));
   if (unknown.length) {
     throw new ToolError(`Can't change ${unknown.join(", ")} from chat. Editable ${kind} fields: ${Object.keys(labels).join(", ")}. ` +
       "Other changes must be made on the record's page.");
@@ -529,7 +530,7 @@ async function chat(apiKey: string, messages: ArgusMessage[], path: string, onSt
       const step = { tool: call.name, label: TOOLS[call.name]?.label(call.input ?? {}) ?? call.name };
       steps.push(step);
       await onStep(step);
-      const output = await runArgusTool(call.name, call.input);
+      const output = await runArgusTool(call.name, call.input, ctx);
       const isError = !!output && typeof output === "object" && "error" in output;
       results.push({ type: "tool_result", tool_use_id: call.id, content: capResult(output), ...(isError ? { is_error: true } : {}) });
     }
@@ -563,6 +564,38 @@ function parseRequest(body: unknown) {
 }
 
 /**
+ * Each chat can make several metered model calls, so requests are limited per client (in memory; the portal has no
+ * sign-in yet to key this on a user).
+ */
+const RATE_LIMIT = { requests: 20, windowMs: 5 * 60_000 };
+const recentRequests = new Map<string, number[]>();
+
+function clientKey(c: Parameters<typeof getConnInfo>[0]) {
+  const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
+  if (forwarded) return forwarded;
+  try {
+    return getConnInfo(c).remote.address ?? "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+function allowRequest(key: string, now = Date.now()) {
+  const recent = (recentRequests.get(key) ?? []).filter((t) => now - t < RATE_LIMIT.windowMs);
+  if (recent.length >= RATE_LIMIT.requests) {
+    recentRequests.set(key, recent);
+    return false;
+  }
+  recent.push(now);
+  recentRequests.set(key, recent);
+  // Forget idle clients so the map doesn't grow without bound
+  if (recentRequests.size > 1000) {
+    for (const [k, times] of recentRequests) if (!times.some((t) => now - t < RATE_LIMIT.windowMs)) recentRequests.delete(k);
+  }
+  return true;
+}
+
+/**
  * Body: { messages: [{ role, content }], path }. Answers { reply, steps, proposals }; with
  * `Accept: application/x-ndjson`, streams each step as it runs, then the answer (ArgusStreamEvent per line).
  */
@@ -570,6 +603,10 @@ argus.post("/chat", async (c) => {
   const { messages, path } = parseRequest(await c.req.json().catch(() => null));
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return c.json({ error: NOT_SET_UP }, 503);
+  if (!allowRequest(clientKey(c))) {
+    c.header("Retry-After", String(RATE_LIMIT.windowMs / 1000));
+    return c.json({ error: "You've asked Argus a lot in the last few minutes. Wait a moment and try again." }, 429);
+  }
 
   if (!(c.req.header("accept") ?? "").includes("application/x-ndjson")) {
     return c.json(await chat(apiKey, messages, path, () => {}));
