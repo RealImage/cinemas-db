@@ -188,6 +188,8 @@ export const EditScopedCredentialDialog = ({ open, onOpenChange, device, scope, 
               <div className="relative">
                 <Input
                   id={`cred-${f.key}`}
+                  required={f.mandatory}
+                  aria-required={f.mandatory}
                   type={f.masked && !shown[f.key] ? "password" : "text"}
                   inputMode={f.valueType === "numeric" ? "decimal" : undefined}
                   autoComplete={f.masked ? "new-password" : "off"}

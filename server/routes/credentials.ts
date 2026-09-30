@@ -289,6 +289,10 @@ function parseCredential(
   const values: CredentialValues = {};
   for (const field of device.credentialFields) {
     const v = (raw as Record<string, unknown>)[field.key];
+    // Text or a number; left out or null means blank. Anything else is an error, never a silently dropped value
+    if (v != null && typeof v !== "string" && !(typeof v === "number" && Number.isFinite(v))) {
+      throw httpError(400, `${field.name} must be text or a number`);
+    }
     const str = typeof v === "number" ? String(v) : typeof v === "string" ? v.trim() : "";
     const kept = field.masked ? existing?.values[field.key] : undefined;
     if (!str) {
