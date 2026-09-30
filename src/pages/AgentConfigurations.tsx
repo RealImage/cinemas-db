@@ -133,10 +133,14 @@ const ConfigurationTabs = ({ agent, rows, onEditAgent }: { agent: AgentDetails; 
   useEffect(() => {
     if (params.has("scope") || params.has("ref")) setParams({}, { replace: true });
   }, [params, setParams]);
+  useEffect(() => {
+    if (link && !agent.configLevels.includes(link.scope)) setLink(null);
+  }, [agent.configLevels, link]);
+  const activeLink = link && agent.configLevels.includes(link.scope) ? link : null;
   const levels = configScopes.filter((s) => agent.configLevels.includes(s.id));
   return (
     // Remounts when the levels change, so a tab that was just turned off isn't left selected
-    <Tabs key={agent.configLevels.join()} defaultValue={link?.scope ?? levels[0]?.id}>
+    <Tabs key={agent.configLevels.join()} defaultValue={activeLink?.scope ?? levels[0]?.id}>
       <TabsList className="flex-wrap h-auto">
         {levels.map((s) => (
           <TabsTrigger key={s.id} value={s.id} className="gap-2">
@@ -152,7 +156,7 @@ const ConfigurationTabs = ({ agent, rows, onEditAgent }: { agent: AgentDetails; 
             scope={s.id}
             rows={rows.filter((r) => r.scope === s.id)}
             onEditAgent={onEditAgent}
-            openRef={s.id === link?.scope ? link.ref : undefined}
+            openRef={s.id === activeLink?.scope ? activeLink.ref : undefined}
             onOpenRefHandled={() => setLink(null)}
           />
         </TabsContent>

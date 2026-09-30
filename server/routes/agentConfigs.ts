@@ -154,7 +154,8 @@ agentConfigs.patch("/:id", async (c) => {
 agentConfigs.get("/:id/configurations", async (c) => {
   const agent = await getAgent(c.req.param("id"));
   const rows = await query<ConfigRow>(
-    `SELECT ${CONFIG_COLUMNS} FROM agent_configurations WHERE image_id = $1 ORDER BY scope, ref`, [agent.id]);
+    `SELECT ${CONFIG_COLUMNS} FROM agent_configurations
+     WHERE image_id = $1 AND scope = ANY($2) ORDER BY scope, ref`, [agent.id, agent.configLevels]);
   return c.json(rows.map((r) => toConfiguration(r, agent.configFields)));
 });
 
@@ -258,6 +259,7 @@ agentConfigs.put("/:id/configurations/:configId", async (c) => {
 agentConfigs.get("/:id/configurations/:configId/values/:fieldKey", async (c) => {
   const agent = await getAgent(c.req.param("id"));
   const row = await getConfiguration(null, agent.id, c.req.param("configId"));
+  if (!agent.configLevels.includes(row.scope)) throw notFound("Configuration");
   const fieldKey = c.req.param("fieldKey");
   const field = agent.configFields.find((f) => f.key === fieldKey);
   if (!field) throw notFound("Configuration field");
