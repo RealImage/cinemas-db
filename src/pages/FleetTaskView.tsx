@@ -31,6 +31,7 @@ import { QueryState } from "@/components/ui/query-state";
 import { useCancelTaskAppliance, useFleetTask } from "@/hooks/api/fleet";
 import { formatDate, formatDateTime } from "@/lib/dateUtils";
 import { toast } from "sonner";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 type TaskAppliance = TaskApplianceProgress;
 
@@ -130,6 +131,7 @@ const FleetTaskViewContent = ({ task }: { task: FleetTaskDetail }) => {
     {
       accessor: "theatreName",
       header: "Theatre Name",
+      cell: (appliance) => <TheatreNameWithInfo name={appliance.theatreName} theatreRef={appliance.theatreId || appliance.theatreName} nameClassName="" />,
     },
     {
       accessor: "chainName",

@@ -2,6 +2,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { FlmFeed } from "@/data/flmFeedsData";
 import { formatDate, formatTime } from "@/lib/dateUtils";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
+import { feedTheatreDetails } from "@/data/flmFeedsData";
 
 interface FlmDetailSheetProps {
   feed: FlmFeed | null;
@@ -23,7 +25,7 @@ export const FlmDetailSheet = ({ feed, onClose }: FlmDetailSheetProps) => (
       </SheetHeader>
       {feed && (
         <div className="mt-4 divide-y-0">
-          <Row label="Theatre Name" value={feed.theatreName} />
+          <Row label="Theatre Name" value={feed.theatreName ? <TheatreNameWithInfo name={feed.theatreName} details={feedTheatreDetails(feed)} nameClassName="" /> : "—"} />
           <Row label="Theatre Display Name" value={feed.theatreDisplayName} />
           <Row label="Address" value={feed.address} />
           <Row label="Theatre UUID" value={<span className="font-mono text-xs">{feed.theatreUuid}</span>} />

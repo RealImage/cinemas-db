@@ -9,6 +9,7 @@ import {
 } from "@/data/credentialsManagerData";
 import { CredentialValues } from "./CredentialValues";
 import { common } from "@/i18n/common";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 interface Props {
   open: boolean;
@@ -27,7 +28,8 @@ export const ViewScopedCredentialDialog = ({ open, onOpenChange, device, credent
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <KeyRound className="h-4 w-4" /> {credential.ref}
+            <KeyRound className="h-4 w-4" />{" "}
+            {credential.scope === "theatre" ? <TheatreNameWithInfo name={credential.ref} theatreRef={credential.ref} nameClassName="" /> : credential.ref}
           </DialogTitle>
           <DialogDescription>
             {scope.label} for {device.brand} {device.model}

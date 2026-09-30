@@ -25,6 +25,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 interface PartnerDetailSheetProps {
   partner: PartnerRequest | null;
@@ -211,7 +212,11 @@ export const PartnerDetailSheet = ({ partner, open, onOpenChange }: PartnerDetai
                   {regions.map((region) => (
                     <TableRow key={region.id}>
                       <TableCell className="text-sm">{region.parameterType}</TableCell>
-                      <TableCell className="text-sm">{region.value}</TableCell>
+                      <TableCell className="text-sm">
+                        {region.parameterType === "Theatre" && region.value
+                          ? <TheatreNameWithInfo name={region.value} theatreRef={region.value} nameClassName="" />
+                          : region.value}
+                      </TableCell>
                       <TableCell>
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(region.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
