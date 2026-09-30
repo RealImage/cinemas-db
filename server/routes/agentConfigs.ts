@@ -8,7 +8,9 @@ import {
   AgentConfiguration,
   AgentDetails,
   ConfigFieldDef,
+  type ConfigScope,
   GLOBAL_REF,
+  configScopeIds,
   configScopes,
   configValueError,
   configValueTypes,
@@ -27,7 +29,7 @@ const AGENT_SELECT = `
   SELECT i.id, i.provider, i.agent_os_name AS "agentOsName",
          COALESCE((SELECT v.version FROM fleet_image_versions v WHERE v.image_id = i.id
                    ORDER BY v.release_date DESC, v.added_on DESC LIMIT 1), '') AS "latestVersion",
-         i.entitlements, i.config_fields AS "configFields",
+         i.entitlements, i.config_fields AS "configFields", i.config_levels AS "configLevels",
          COALESCE(i.config_updated_by, i.updated_by, '') AS "updatedBy",
          COALESCE(i.config_updated_at, i.updated_at) AS "updatedAt"
   FROM fleet_images i`;
@@ -117,6 +119,15 @@ agentConfigs.patch("/:id", async (c) => {
     entitlements = raw as string[];
   }
   const newFields = body.configFields !== undefined ? parseConfigFields(body.configFields) : undefined;
+  let configLevels: ConfigScope[] | undefined;
+  if (body.configLevels !== undefined) {
+    const raw = body.configLevels;
+    if (!Array.isArray(raw) || !raw.every((l) => configScopeIds.includes(l))) {
+      throw httpError(400, `configLevels must be a list of: ${configScopeIds.join(", ")}`);
+    }
+    if (raw.length === 0) throw httpError(400, "Choose at least one configuration level");
+    configLevels = configScopeIds.filter((l) => raw.includes(l)); // in display order, no repeats
+  }
 
   await transaction(async (db) => {
     // Merge against the row as locked here, so concurrent partial updates
@@ -126,9 +137,10 @@ agentConfigs.patch("/:id", async (c) => {
     const configFields = newFields ?? current.configFields;
     await db.query(
       `UPDATE fleet_images
-       SET entitlements = $2, config_fields = $3, config_updated_by = $4, config_updated_at = now()
+       SET entitlements = $2, config_fields = $3, config_levels = $5, config_updated_by = $4, config_updated_at = now()
        WHERE id = $1`,
-      [id, normalizeEntitlements(entitlements ?? current.entitlements), JSON.stringify(configFields), CURRENT_USER],
+      [id, normalizeEntitlements(entitlements ?? current.entitlements), JSON.stringify(configFields), CURRENT_USER,
+        configLevels ?? current.configLevels],
     );
     await syncEncryption(db, AGENT_CONFIG_SECRETS, id);
   });
@@ -142,7 +154,8 @@ agentConfigs.patch("/:id", async (c) => {
 agentConfigs.get("/:id/configurations", async (c) => {
   const agent = await getAgent(c.req.param("id"));
   const rows = await query<ConfigRow>(
-    `SELECT ${CONFIG_COLUMNS} FROM agent_configurations WHERE image_id = $1 ORDER BY scope, ref`, [agent.id]);
+    `SELECT ${CONFIG_COLUMNS} FROM agent_configurations
+     WHERE image_id = $1 AND scope = ANY($2) ORDER BY scope, ref`, [agent.id, agent.configLevels]);
   return c.json(rows.map((r) => toConfiguration(r, agent.configFields)));
 });
 
@@ -156,6 +169,7 @@ function parseConfiguration(body: Record<string, unknown>, agent: AgentDetails, 
   const scopeInfo = configScopes.find((s) => s.id === scope);
   if (!scopeInfo) throw httpError(400, `Scope must be one of: ${configScopes.map((s) => s.id).join(", ")}`);
   if (existing && body.scope !== undefined && body.scope !== existing.scope) throw httpError(400, "A configuration's scope cannot be changed");
+  if (!agent.configLevels.includes(scopeInfo.id)) throw httpError(400, `${scopeInfo.label} configurations are turned off for this agent`);
 
   // Global holds a single row
   const ref = scopeInfo.id === "global" ? GLOBAL_REF : typeof body.ref === "string" ? body.ref.trim() : "";
@@ -245,6 +259,7 @@ agentConfigs.put("/:id/configurations/:configId", async (c) => {
 agentConfigs.get("/:id/configurations/:configId/values/:fieldKey", async (c) => {
   const agent = await getAgent(c.req.param("id"));
   const row = await getConfiguration(null, agent.id, c.req.param("configId"));
+  if (!agent.configLevels.includes(row.scope)) throw notFound("Configuration");
   const fieldKey = c.req.param("fieldKey");
   const field = agent.configFields.find((f) => f.key === fieldKey);
   if (!field) throw notFound("Configuration field");

@@ -102,6 +102,7 @@ export const configScopes = [
   { id: "theatre", label: "Theatre", refLabel: "Theatre" },
 ] as const;
 export type ConfigScope = (typeof configScopes)[number]["id"];
+export const configScopeIds: ConfigScope[] = configScopes.map((s) => s.id);
 
 export interface AgentDetails {
   id: string;
@@ -110,6 +111,8 @@ export interface AgentDetails {
   latestVersion: string;
   entitlements: string[];
   configFields: ConfigFieldDef[];
+  /** The levels configurations can be set at; the other levels' tabs are hidden and their rows ignored. */
+  configLevels: ConfigScope[];
   /** Last change to the entitlements or configurations format. */
   updatedBy: string;
   updatedAt: string;
@@ -129,7 +132,7 @@ export interface AgentConfiguration {
   updatedAt: string;
 }
 
-export type AgentUpdateInput = Pick<AgentDetails, "entitlements" | "configFields">;
+export type AgentUpdateInput = Pick<AgentDetails, "entitlements" | "configFields" | "configLevels">;
 
 /** On update, a masked field left out of `values` keeps its stored value. */
 export type AgentConfigurationInput = Pick<AgentConfiguration, "scope" | "ref" | "values">;
