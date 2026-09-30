@@ -691,7 +691,8 @@ theatres.get("/facets", async (c) => {
 
 /**
  * Identity for the theatre info hover card; `ref` is a theatre's id, code (e.g. T30000), UUID or, since agent
- * configs, credentials and partner regions store names, its exact name (case-insensitive). Id/code/uuid matches
+ * configs, credentials and partner regions store names, its exact name (case-insensitive; names are stored trimmed,
+ * so this uses theatres_name_idx on lower(name)). Id/code/uuid matches
  * win over name matches, and live theatres over Deleted ones.
  */
 theatres.get("/:ref/summary", async (c) => {
@@ -700,8 +701,8 @@ theatres.get("/:ref/summary", async (c) => {
     address: string | null; city: string | null; state: string | null; postal_code: string | null; country: string | null;
   }>(
     `SELECT id, name, display_name, alternate_names, uuid, address, city, state, postal_code, country
-     FROM theatres WHERE id = $1 OR code = $1 OR uuid = $1 OR lower(btrim(name)) = lower(btrim($1))
-     ORDER BY (id = $1) DESC, (code = $1) DESC, (uuid = $1) DESC, (status = 'Deleted') ASC, id
+     FROM theatres WHERE id = $1 OR code = $1 OR uuid = $1 OR lower(name) = lower(btrim($1))
+     ORDER BY (id = $1) DESC, coalesce(code = $1, false) DESC, coalesce(uuid = $1, false) DESC, (status = 'Deleted') ASC, id
      LIMIT 1`,
     [c.req.param("ref")],
   );
