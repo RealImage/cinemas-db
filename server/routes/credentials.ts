@@ -173,8 +173,11 @@ function parseCredentialFields(raw: unknown): CredentialFieldDef[] {
       throw httpError(400, `Value type for "${name}" must be one of: ${credentialValueTypes.join(", ")}`);
     }
     if (f.masked !== undefined && typeof f.masked !== "boolean") throw httpError(400, `Masked for "${name}" must be true or false`);
+    if (f.mandatory !== undefined && typeof f.mandatory !== "boolean") throw httpError(400, `Mandatory for "${name}" must be true or false`);
     const keyOk = typeof f.key === "string" && /^[A-Za-z0-9_]+$/.test(f.key) && !fields.some((x) => x.key === f.key);
-    fields.push({ key: keyOk ? (f.key as string) : makeFieldKey(name, fields), name, valueType: f.valueType!, masked: f.masked === true });
+    fields.push({ key: keyOk ? (f.key as string) : makeFieldKey(name, fields), name, valueType: f.valueType!, masked: f.masked === true,
+      // Left out means mandatory, as every field was before the flag existed
+      mandatory: f.mandatory !== false });
   }
   return fields;
 }
@@ -254,8 +257,9 @@ credentials.get("/devices/:id/credentials", async (c) => {
 
 /**
  * Validate a credential body against the device's credentials format and
- * build the stored values, encrypting masked ones. On update (`existing`), a
- * masked field that's left out or blank keeps its stored value.
+ * build the stored values, encrypting masked ones. Mandatory fields need a
+ * value; optional ones may be left blank (and aren't stored). On update
+ * (`existing`), a masked field that's left out or blank keeps its stored value.
  */
 function parseCredential(
   body: Record<string, unknown>,
@@ -285,16 +289,22 @@ function parseCredential(
   const values: CredentialValues = {};
   for (const field of device.credentialFields) {
     const v = (raw as Record<string, unknown>)[field.key];
+    // Text or a number; left out or null means blank. Anything else is an error, never a silently dropped value
+    if (v != null && typeof v !== "string" && !(typeof v === "number" && Number.isFinite(v))) {
+      throw httpError(400, `${field.name} must be text or a number`);
+    }
     const str = typeof v === "number" ? String(v) : typeof v === "string" ? v.trim() : "";
     const kept = field.masked ? existing?.values[field.key] : undefined;
     if (!str) {
       if (kept) { values[field.key] = kept; continue; }
+      if (field.mandatory === false) continue;
       throw httpError(400, `${field.name} is required`);
     }
     if (field.valueType === "numeric" && !isNumericValue(str)) throw httpError(400, `${field.name} must be a number`);
     if (looksLikeEnvelope(str)) throw httpError(400, `${field.name} can't start with "enc:v1:"`);
     values[field.key] = field.masked ? encryptValue(str, credentialId, field.key) : str;
   }
+  if (Object.keys(values).length === 0) throw httpError(400, "Enter at least one credential value");
   return { scope: scopeInfo.id, scopeLabel: scopeInfo.label, ref, location, values };
 }
 

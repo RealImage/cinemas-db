@@ -115,7 +115,8 @@ export const EditScopedCredentialDialog = ({ open, onOpenChange, device, scope, 
   };
   const canSave =
     trimmedRef !== "" && !duplicate && !saving && fields.length > 0 &&
-    fields.every((f) => ((values[f.key] ?? "").trim() !== "" || hasStored(f)) && !valueError(f));
+    fields.every((f) => (!f.mandatory || (values[f.key] ?? "").trim() !== "" || hasStored(f)) && !valueError(f)) &&
+    fields.some((f) => (values[f.key] ?? "").trim() !== "" || hasStored(f));
 
   const handleSave = () => {
     onSave({
@@ -180,11 +181,20 @@ export const EditScopedCredentialDialog = ({ open, onOpenChange, device, scope, 
             <div key={f.key} className="space-y-1">
               <Label htmlFor={`cred-${f.key}`} className="text-xs">
                 {f.name}
+{f.mandatory && (
+  <>
+    <span className="text-red-500" aria-hidden="true"> *</span>
+    <span className="sr-only"> (required)</span>
+  </>
+)}
                 {f.valueType === "numeric" && <span className="font-normal text-muted-foreground"> (numeric)</span>}
+                {!f.mandatory && <span className="font-normal text-muted-foreground"> (optional)</span>}
               </Label>
               <div className="relative">
                 <Input
                   id={`cred-${f.key}`}
+                  required={f.mandatory}
+                  aria-required={f.mandatory}
                   type={f.masked && !shown[f.key] ? "password" : "text"}
                   inputMode={f.valueType === "numeric" ? "decimal" : undefined}
                   autoComplete={f.masked ? "new-password" : "off"}

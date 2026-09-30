@@ -107,8 +107,8 @@ export const DeviceModelDialog = ({ open, onOpenChange, device, onSave, saving =
 
   const fieldsChanged =
     !!device &&
-    JSON.stringify(device.credentialFields.map((f) => [f.key, f.name, f.valueType, f.masked])) !==
-      JSON.stringify(form.fields.map((f) => [f.key, f.name.trim(), f.valueType, f.masked]));
+    JSON.stringify(device.credentialFields.map((f) => [f.key, f.name, f.valueType, f.masked, f.mandatory])) !==
+      JSON.stringify(form.fields.map((f) => [f.key, f.name.trim(), f.valueType, f.masked, f.mandatory]));
   const maskingChanged =
     !!device && form.fields.some((f) => device.credentialFields.some((d) => d.key === f.key && d.masked !== f.masked));
 
@@ -128,7 +128,7 @@ export const DeviceModelDialog = ({ open, onOpenChange, device, onSave, saving =
       dci,
       translations: form.translations,
       serialNumberRequired: form.serialNumberRequired,
-      credentialFields: form.fields.map(({ key, name, valueType, masked }) => ({ key, name: name.trim(), valueType, masked })),
+      credentialFields: form.fields.map(({ key, name, valueType, masked, mandatory }) => ({ key, name: name.trim(), valueType, masked, mandatory })),
     }).then(() => onOpenChange(false), () => undefined);
   };
 
@@ -212,15 +212,16 @@ export const DeviceModelDialog = ({ open, onOpenChange, device, onSave, saving =
 
           <fieldset className="space-y-2 md:col-span-2">
             <legend className="mb-1 text-xs font-medium">Credentials format<Required /></legend>
-            <div className="grid grid-cols-[1fr_9rem_4rem_2.125rem] items-center gap-2 text-xs text-muted-foreground">
+            <div className="grid grid-cols-[1fr_9rem_4rem_5rem_2.125rem] items-center gap-2 text-xs text-muted-foreground">
               <span>Credential name</span>
               <span>Value type</span>
               <span className="text-center" title="Masked values are stored encrypted and hidden until someone clicks View">Masked</span>
+              <span className="text-center" title="A credential can't be saved without a value for a mandatory field">Mandatory</span>
               <span className="sr-only">Remove</span>
             </div>
             {form.fields.map((row, i) => (
               <div key={row.rowId} className="space-y-1">
-                <div className="grid grid-cols-[1fr_9rem_4rem_2.125rem] items-center gap-2">
+                <div className="grid grid-cols-[1fr_9rem_4rem_5rem_2.125rem] items-center gap-2">
                   <Input
                     aria-label={`Credential name ${i + 1}`}
                     value={row.name}
@@ -247,6 +248,13 @@ export const DeviceModelDialog = ({ open, onOpenChange, device, onSave, saving =
                       aria-label={`Masked ${row.name || `field ${i + 1}`}`}
                     />
                   </div>
+                  <div className="flex justify-center">
+                    <Checkbox
+                      checked={row.mandatory}
+                      onCheckedChange={(c) => updField(row.rowId, { mandatory: c === true })}
+                      aria-label={`Mandatory ${row.name || `field ${i + 1}`}`}
+                    />
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
@@ -260,13 +268,14 @@ export const DeviceModelDialog = ({ open, onOpenChange, device, onSave, saving =
                 {show(fieldError(row, i))}
               </div>
             ))}
-            <Button type="button" variant="outline" size="sm" onClick={() => upd({ fields: [...form.fields, toRow({ key: "", name: "", valueType: "string", masked: false })] })}>
+            <Button type="button" variant="outline" size="sm" onClick={() => upd({ fields: [...form.fields, toRow({ key: "", name: "", valueType: "string", masked: false, mandatory: true })] })}>
               <Plus className="h-4 w-4" /> Add credential field
             </Button>
             {show(errors.fields === "Add at least one credential field" ? errors.fields : null)}
             {fieldsChanged && (
               <p className="text-xs text-muted-foreground">
-                Existing credentials keep their stored values. New fields stay blank until each credential is edited.
+                Existing credentials keep their stored values. New fields stay blank until each credential is edited;
+                a new mandatory field has to be filled in the next time one is saved.
                 {maskingChanged && " Stored values of fields whose Masked setting changed are encrypted or decrypted when you save."}
               </p>
             )}

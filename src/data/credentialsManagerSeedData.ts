@@ -243,9 +243,9 @@ const rows: SeedRow[] = [
   ["XDC", "CineStore Solo G3", ["SPB", "SM", "MDI", "MDA", "FMI", "FMA", "LE"], "Playback Server", "true", ["SOLOG3-MVC200", "CSC-INTER", "G3"], "Common", "2018-08-24T16:16:00+05:30"],
 ];
 
-const SITE_ID: CredentialFieldDef = { key: "siteId", name: "Site ID", valueType: "string", masked: false };
-const USERNAME: CredentialFieldDef = { key: "username", name: "Username", valueType: "string", masked: false };
-const PASSWORD: CredentialFieldDef = { key: "password", name: "Password", valueType: "string", masked: true };
+const SITE_ID: CredentialFieldDef = { key: "siteId", name: "Site ID", valueType: "string", masked: false, mandatory: true };
+const USERNAME: CredentialFieldDef = { key: "username", name: "Username", valueType: "string", masked: false, mandatory: true };
+const PASSWORD: CredentialFieldDef = { key: "password", name: "Password", valueType: "string", masked: true, mandatory: true };
 
 const fieldsForType = (type: DeviceType, i: number): CredentialFieldDef[] => {
   switch (type) {
