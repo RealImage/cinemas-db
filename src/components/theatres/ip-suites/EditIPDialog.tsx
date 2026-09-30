@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
 import { common } from "@/i18n/common";
+import { isIPv4 } from "@/lib/ip";
 
 interface ScreenIP {
   id: string;
@@ -31,12 +32,6 @@ const commonSubnetMasks = [
   "255.255.255.248",
   "255.255.255.252"
 ];
-
-const validateIPAddress = (ip: string): boolean => {
-  const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-  const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$/;
-  return ipv4Regex.test(ip) || ipv6Regex.test(ip);
-};
 
 export const EditIPDialog = ({ open, onOpenChange, ip, onSave }: EditIPDialogProps) => {
   const [formData, setFormData] = useState({
@@ -69,16 +64,16 @@ export const EditIPDialog = ({ open, onOpenChange, ip, onSave }: EditIPDialogPro
 
     if (!formData.ipAddress) {
       newErrors.ipAddress = "IP Address is required";
-    } else if (!validateIPAddress(formData.ipAddress)) {
-      newErrors.ipAddress = "Please enter a valid IP address";
+    } else if (!isIPv4(formData.ipAddress)) {
+      newErrors.ipAddress = "Enter an IPv4 address, e.g. 192.168.1.10";
     }
 
     if (!formData.subnetMask) {
       newErrors.subnetMask = "Subnet Mask is required";
     }
 
-    if (formData.gateway && !validateIPAddress(formData.gateway)) {
-      newErrors.gateway = "Please enter a valid gateway address";
+    if (formData.gateway && !isIPv4(formData.gateway)) {
+      newErrors.gateway = "Enter the gateway as an IPv4 address";
     }
 
     setErrors(newErrors);

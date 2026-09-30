@@ -145,6 +145,7 @@ export const ConfigurationsTab = ({ agent, scope, rows, onEditAgent, openRef, on
       ) : (
         <DataTable
           data={sorted}
+          exportName={`${scopeInfo.label} Configurations`}
           columns={columns}
           searchPlaceholder={`Search ${scopeInfo.label.toLowerCase()} configurations...`}
           actions={actions}

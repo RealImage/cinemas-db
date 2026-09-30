@@ -2094,6 +2094,7 @@ export const TheatreDialog = ({
                 {screens.length > 0 ? (
                   <DataTable
                     data={screens}
+                    exportName="Screens"
                     columns={screenColumns}
                     searchPlaceholder="Search screens..."
                     actions={screenActions}

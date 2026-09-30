@@ -44,6 +44,7 @@ const Partners = () => {
         {(partners) => (
           <DataTable
             data={partners}
+            exportName="Partners"
             columns={columns}
             searchable
             searchPlaceholder="Search partners..."

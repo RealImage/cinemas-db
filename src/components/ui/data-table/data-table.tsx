@@ -9,6 +9,9 @@ import { PaginationControls } from "./pagination";
 import { DataTableProps, Action, Filter, SortDirection, SortConfig } from "./types";
 import debounce from 'lodash/debounce';
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { toast } from "sonner";
+import { downloadTable, type ExportFormat } from "@/lib/export";
+import { exportTableData } from "./export-data";
 
 export function DataTable<T extends { id: string }>({
   data,
@@ -28,6 +31,8 @@ export function DataTable<T extends { id: string }>({
   toolbar,
   subToolbar,
   pageResetKey,
+  exportName,
+  onExport,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -255,28 +260,48 @@ export function DataTable<T extends { id: string }>({
     return column.filterOptions;
   };
   
+  // Export every row that matches (the server's, via onExport, or this table's own search, filters and sort)
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async (format: ExportFormat) => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const table = onExport ? await onExport(format) : exportTableData(columns, filteredData);
+      await downloadTable(table, format, exportName);
+    } catch (err) {
+      toast.error(`Could not export: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Show actions column flag
   const showActions = Boolean(actions && actions.length > 0);
   
   return (
     <div className="w-full space-y-4 animate-fade-in">
-      {searchable && (
-        <SearchExport
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          searchPlaceholder={searchPlaceholder}
-        >
-          {showFilters && columns.some((c) => c.filterable) && (
-            <Filters
-              columns={columns}
-              activeFilters={activeFilters}
-              applyFilters={applyFilters}
-              getFilterOptions={getFilterOptions}
-            />
-          )}
-          {toolbar}
-        </SearchExport>
-      )}
+      <SearchExport
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        searchPlaceholder={searchPlaceholder}
+        onExport={handleExport}
+        exporting={exporting}
+        showSearch={searchable}
+      >
+        {searchable && (
+          <>
+            {showFilters && columns.some((c) => c.filterable) && (
+              <Filters
+                columns={columns}
+                activeFilters={activeFilters}
+                applyFilters={applyFilters}
+                getFilterOptions={getFilterOptions}
+              />
+            )}
+            {toolbar}
+          </>
+        )}
+      </SearchExport>
       {subToolbar}
       
       <div className="rounded-md border overflow-hidden animate-scale-in">

@@ -155,6 +155,7 @@ const WireTAPDevices = () => {
         {() => (
           <DataTable
             data={filteredDevices}
+            exportName="WireTAP Devices"
             columns={columns}
             searchable={true}
             searchPlaceholder="Search WireTAP devices..."

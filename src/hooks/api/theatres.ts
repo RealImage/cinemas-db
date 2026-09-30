@@ -48,19 +48,30 @@ export interface TheatrePageParams {
   tags: TheatreTag[];
 }
 
-/** One page of the Theatre List, searched, filtered and sorted on the server. */
-export const useTheatrePage = (p: TheatrePageParams) => {
-  const qs = new URLSearchParams({ page: String(p.page), pageSize: String(p.pageSize), mode: p.mode });
+/** The Theatre List's search, filter, tag and sort parameters (everything but paging). */
+const theatreListParams = (p: Omit<TheatrePageParams, "page" | "pageSize">) => {
+  const qs = new URLSearchParams({ mode: p.mode });
   if (p.q.trim()) qs.set("q", p.q.trim());
   if (p.sort && p.dir) { qs.set("sort", p.sort); qs.set("dir", p.dir); }
   for (const [name, value] of Object.entries(p.filters)) qs.append(name, value);
   for (const tag of p.tags) qs.append("tag", `${tag.kind}:${tag.value}`);
+  return qs;
+};
+
+/** One page of the Theatre List, searched, filtered and sorted on the server. */
+export const useTheatrePage = (p: TheatrePageParams) => {
+  const qs = new URLSearchParams({ page: String(p.page), pageSize: String(p.pageSize) });
+  for (const [name, value] of theatreListParams(p)) qs.append(name, value);
   return useQuery({
     queryKey: theatreKeys.page(qs.toString()),
     queryFn: () => api.get<TheatrePage>(`/theatres/page?${qs}`),
     placeholderData: keepPreviousData,
   });
 };
+
+/** Every theatre the Theatre List matches (not just one page), in list order, for an export. */
+export const fetchTheatreExport = (p: Omit<TheatrePageParams, "page" | "pageSize">) =>
+  api.get<TheatrePage>(`/theatres/export?${theatreListParams(p)}`);
 
 export const useTheatreFacets = () =>
   useQuery({ queryKey: theatreKeys.facets, queryFn: () => api.get<TheatreFacets>("/theatres/facets") });

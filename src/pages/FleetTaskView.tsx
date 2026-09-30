@@ -320,6 +320,7 @@ const FleetTaskViewContent = ({ task }: { task: FleetTaskDetail }) => {
         <CardContent>
           <DataTable
             data={appliances}
+            exportName="Fleet Task Appliances"
             columns={deviceColumns}
             searchPlaceholder="Search by serial number, node ID, or theatre..."
             searchable={true}
