@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatTheatreAddress } from "@/data/theatreSummary";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
@@ -8,14 +9,19 @@ import {
 } from "@/data/theatreSearch";
 
 /** A value in a Theatre List cell that filters the list by itself when clicked. */
-export function TagButton({ tag, onTag }: { tag: TheatreTag; onTag: (tag: TheatreTag) => void }) {
+export function TagButton({ tag, onTag, hint }: {
+  tag: TheatreTag;
+  onTag: (tag: TheatreTag) => void;
+  /** Extra line for the tooltip, e.g. the full address under a location tag. */
+  hint?: string;
+}) {
   return (
     <button
       type="button"
       // Rows open the theatre on click; a tag only filters
       onClick={(e) => { e.stopPropagation(); onTag(tag); }}
       onKeyDown={(e) => e.stopPropagation()}
-      title={`Filter by ${theatreTagLabel(tag.kind)}: ${tag.value}`}
+      title={`${hint ? `${hint}\n` : ""}Filter by ${theatreTagLabel(tag.kind)}: ${tag.value}`}
       className="max-w-full truncate rounded border border-transparent bg-black/[.04] px-1.5 py-0.5 text-left text-xs hover:border-primary/40 hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
     >
       {tag.value}
@@ -105,7 +111,7 @@ export function TagChips({
 
 /** City, province and country tags under a theatre's name (the full address on hover); clicking one filters by it. */
 export const TheatreLocation = ({ row, onTag }: {
-  row: { city?: string | null; state?: string | null; country?: string | null; address?: string | null };
+  row: { address?: string | null; city?: string | null; state?: string | null; postalCode?: string | null; country?: string | null };
   onTag: (tag: TheatreTag) => void;
 }) => {
   const places: TheatreTag[] = [
@@ -113,10 +119,11 @@ export const TheatreLocation = ({ row, onTag }: {
     { kind: "province", value: row.state },
     { kind: "country", value: row.country },
   ].filter((t): t is TheatreTag => !!t.value);
-  if (!places.length) return <div className="text-xs text-muted-foreground">{row.address || "Location not set"}</div>;
+  const address = formatTheatreAddress(row);
+  if (!places.length) return <div className="text-xs text-muted-foreground">{address || "Location not set"}</div>;
   return (
-    <div className="flex flex-wrap gap-1" title={row.address || undefined}>
-      {places.map((tag) => <TagButton key={tag.kind} tag={tag} onTag={onTag} />)}
+    <div className="flex flex-wrap gap-1">
+      {places.map((tag) => <TagButton key={tag.kind} tag={tag} onTag={onTag} hint={address || undefined} />)}
     </div>
   );
 };
