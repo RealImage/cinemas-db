@@ -73,7 +73,7 @@ const THEATRE_COLUMNS = `
               ORDER BY w.application_serial_number)
             FROM wiretap_devices w WHERE w.theatre_id = t.id AND w.pull_out_status <> 'Pulled Out'), '[]') AS "wireTAPDevices"`;
 
-const THEATRE_FROM = `FROM theatres t
+export const THEATRE_FROM = `FROM theatres t
   LEFT JOIN chains c ON c.id = t.chain_id
   LEFT JOIN companies co ON co.id = t.company_id`;
 
@@ -85,7 +85,7 @@ type TheatreRow = Omit<Theatre, "deliveryAddress"> & { deliverySettings: Record<
 /** Spread delivery settings into the Theatre shape the form edits. */
 const toTheatre = ({ deliverySettings, ...row }: TheatreRow) => ({ ...(deliverySettings ?? {}), ...row }) as Theatre;
 
-async function loadTheatre(id: string, db: Pick<pg.PoolClient, "query"> | null = null) {
+export async function loadTheatre(id: string, db: Pick<pg.PoolClient, "query"> | null = null) {
   const sql = `SELECT ${THEATRE_COLUMNS}, ${SCREENS_COLUMN} ${THEATRE_FROM} WHERE t.id = $1`;
   const rows = db ? (await db.query<TheatreRow>(sql, [id])).rows : await query<TheatreRow>(sql, [id]);
   return rows[0] ? toTheatre(rows[0]) : undefined;
@@ -95,7 +95,7 @@ async function loadTheatre(id: string, db: Pick<pg.PoolClient, "query"> | null =
 // Validation / writes
 // ---------------------------------------------------------------------------
 
-const STATUSES = ["Active", "Inactive", "Closed"];
+export const STATUSES = ["Active", "Inactive", "Closed"];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Theatre form key → column, with a converter for the stored value. */
@@ -136,9 +136,9 @@ const SCALAR_FIELDS: Record<string, [column: string, convert?: (v: unknown) => u
 /** Empty strings become NULL for optional text columns (uuid must stay unique). */
 const blankToNull = (v: unknown) => (typeof v === "string" && v.trim() === "" ? null : v);
 
-type TheatreInput = Partial<Theatre> & Record<string, unknown>;
+export type TheatreInput = Partial<Theatre> & Record<string, unknown>;
 
-function validate(body: TheatreInput, creating: boolean) {
+export function validate(body: TheatreInput, creating: boolean) {
   if (creating || "name" in body) {
     if (typeof body.name !== "string" || !body.name.trim()) throw httpError(400, "Theatre name is required");
   }
@@ -496,7 +496,7 @@ const SEARCH_SOURCES: Record<Exclude<TheatreSearchMode, "all">, string> = {
  * A theatre scores the lengths of the distinct tokens it matches (longer, more specific tokens count for more), plus
  * a bonus when one field contains the whole query (1000) or equals it (2000). Appends its parameters to `params`.
  */
-function rankedSearch(q: string, mode: TheatreSearchMode, params: unknown[]): string | null {
+export function rankedSearch(q: string, mode: TheatreSearchMode, params: unknown[]): string | null {
   const phrase = q.trim().toLowerCase().replace(/\s+/g, " ");
   if (!phrase) return null;
   params.push(searchTokens(phrase), phrase);

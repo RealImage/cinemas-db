@@ -14,7 +14,7 @@ import {
 
 export const chains = new Hono();
 
-const CHAIN_SELECT = `
+export const CHAIN_SELECT = `
   SELECT c.id, c.name, c.company_id AS "companyId", co.name AS "companyName",
          (SELECT count(*) FROM theatres t WHERE t.chain_id = c.id AND t.status <> 'Deleted') AS "theatreCount",
          c.status, c.created_at AS "createdAt", c.updated_at AS "updatedAt",
@@ -26,7 +26,7 @@ const CHAIN_SELECT = `
   FROM chains c LEFT JOIN companies co ON co.id = c.company_id`;
 
 /** CHAIN_SELECT plus the Basic and Contact Information the Edit Chain page edits. */
-const CHAIN_DETAILS_SELECT = CHAIN_SELECT.replace("FROM chains c", `,
+export const CHAIN_DETAILS_SELECT = CHAIN_SELECT.replace("FROM chains c", `,
          coalesce(c.display_name, '') AS "displayName", c.city_id AS "cityId",
          (SELECT ci.name || ', ' || p.name || ', ' || co2.name FROM cities ci
             JOIN provinces p ON p.id = ci.province_id JOIN countries co2 ON co2.id = p.country_id
@@ -38,7 +38,7 @@ const CHAIN_DETAILS_SELECT = CHAIN_SELECT.replace("FROM chains c", `,
 chains.get("/", async (c) => c.json(await query<Chain>(`${CHAIN_SELECT} WHERE c.status <> 'Deleted' ORDER BY c.name`)));
 
 /** Dialling codes for the phone fields: each countries.calling_code, with the countries using it. */
-async function callingCodes(db: Pick<pg.PoolClient, "query"> | null = null) {
+export async function callingCodes(db: Pick<pg.PoolClient, "query"> | null = null) {
   const sql = `SELECT calling_code AS code, array_agg(iso3166_2 ORDER BY iso3166_2) AS countries
                FROM countries WHERE NOT is_deleted AND calling_code IS NOT NULL
                GROUP BY calling_code ORDER BY calling_code::int`;

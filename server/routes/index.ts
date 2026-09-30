@@ -13,6 +13,7 @@ import { agentConfigs } from "./agentConfigs";
 import { wtf } from "./wtf";
 import { screenPulse } from "./screenPulse";
 import { locations } from "./locations";
+import { argus } from "./argus";
 
 /** Mounted at /api/<key>. */
 export const routes = {
@@ -31,4 +32,5 @@ export const routes = {
   wtf,
   "screen-pulse": screenPulse,
   locations,
+  argus,
 };
