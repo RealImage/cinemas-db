@@ -26,6 +26,14 @@ export interface FlmFacilityDetails {
   auditoriums: FlmAuditorium[];
 }
 
+/** A feed's own theatre identity for the info hover card: the theatre may not be in CinemaDB yet. */
+export const feedTheatreDetails = (f: Pick<FlmFeed, "theatreName" | "theatreDisplayName" | "theatreUuid" | "address">) => ({
+  name: f.theatreName,
+  alternateNames: f.theatreDisplayName && f.theatreDisplayName !== f.theatreName ? [f.theatreDisplayName] : [],
+  uuid: f.theatreUuid || null,
+  address: f.address || null,
+});
+
 export interface FlmFeed {
   id: string;
   theatreName: string;

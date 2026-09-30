@@ -15,7 +15,7 @@ import {
 import { FilterButton, FilterDrawer, FilterGroup, useFilterDraft } from "@/components/ui/filter-drawer";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/ui/data-table/pagination";
-import { FlmFeed } from "@/data/flmFeedsData";
+import { FlmFeed, feedTheatreDetails } from "@/data/flmFeedsData";
 import { MapThirdPartyIdDialog } from "@/components/flm/MapThirdPartyIdDialog";
 import {
   Select,
@@ -203,12 +203,7 @@ const FLMFeeds = () => {
                   {/* The feed's own details: the theatre may not be in CinemaDB yet */}
                   <TheatreNameWithInfo
                     name={f.theatreName}
-                    details={{
-                      name: f.theatreName,
-                      alternateNames: f.theatreDisplayName && f.theatreDisplayName !== f.theatreName ? [f.theatreDisplayName] : [],
-                      uuid: f.theatreUuid || null,
-                      address: f.address || null,
-                    }}
+                    details={feedTheatreDetails(f)}
                   />
                 </TableCell>
                 <TableCell className="text-sm">{f.chain}</TableCell>

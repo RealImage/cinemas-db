@@ -39,7 +39,11 @@ export const WireTAPMonitoringWidget = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-sm font-medium">{device.hostName}</p>
-                      <p className="text-xs text-muted-foreground">{device.theatreName || "Unmapped"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {device.theatreName
+                          ? <TheatreNameWithInfo name={device.theatreName} theatreRef={device.theatreId || device.theatreName} nameClassName="" />
+                          : "Unmapped"}
+                      </p>
                     </div>
                     <div className="text-xs text-right">
                       <p className="text-red-600 font-medium">Last seen:</p>
@@ -79,3 +83,4 @@ export const WireTAPMonitoringWidget = () => {
 
 // Add the missing CheckCircle icon import
 import { CheckCircle } from "lucide-react";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";

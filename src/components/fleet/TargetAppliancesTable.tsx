@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TaskAppliance } from "@/pages/FleetTaskEdit";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 interface TargetAppliancesTableProps {
   appliances: TaskAppliance[];
@@ -307,7 +308,7 @@ export const TargetAppliancesTable = ({
                   </TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{appliance.theatreName}</div>
+                      <div className="font-medium"><TheatreNameWithInfo name={appliance.theatreName} theatreRef={appliance.theatreId || appliance.theatreName} nameClassName="" /></div>
                       <div className="text-sm text-muted-foreground">
                         {formatLocation(appliance.theatreLocation)}
                       </div>

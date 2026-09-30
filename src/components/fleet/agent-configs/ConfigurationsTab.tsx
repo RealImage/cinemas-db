@@ -20,6 +20,7 @@ import { useDeleteAgentConfiguration, useSaveAgentConfiguration } from "@/hooks/
 import { common } from "@/i18n/common";
 import { ConfigCell, ConfigValuesGrid } from "./ConfigValues";
 import { EditConfigurationDialog } from "./EditConfigurationDialog";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 interface Props {
   agent: AgentDetails;
@@ -109,7 +110,7 @@ export const ConfigurationsTab = ({ agent, scope, rows, onEditAgent, openRef, on
           accessor: "ref" as const,
           filterable: true,
           filterOptions: optionsFor("ref"),
-          cell: (r: AgentConfiguration) => <span className="font-medium">{r.ref}</span>,
+          cell: (r: AgentConfiguration) => scope === "theatre" ? <TheatreNameWithInfo name={r.ref} theatreRef={r.ref} /> : <span className="font-medium">{r.ref}</span>,
         }]),
     ...fields.map((f): Column<AgentConfiguration> => ({
       header: f.name,
@@ -158,7 +159,7 @@ export const ConfigurationsTab = ({ agent, scope, rows, onEditAgent, openRef, on
           {selected && (
             <>
               <DialogHeader>
-                <DialogTitle>{title(selected)}</DialogTitle>
+                <DialogTitle>{scope === "theatre" ? <TheatreNameWithInfo name={selected.ref} theatreRef={selected.ref} nameClassName="" /> : title(selected)}</DialogTitle>
                 <DialogDescription>{scopeInfo.label} configuration for {agent.agentOsName}</DialogDescription>
               </DialogHeader>
               <div className="rounded-lg border p-3">

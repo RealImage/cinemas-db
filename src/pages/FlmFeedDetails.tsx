@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, CheckCircle2, Search } from "lucide-react";
-import { FlmFeed } from "@/data/flmFeedsData";
+import { FlmFeed, feedTheatreDetails } from "@/data/flmFeedsData";
 import { useCreateTheatreFromFlmFeed, useFlmFeed, useMapFlmFeed } from "@/hooks/api/flm";
 import { useTheatres } from "@/hooks/api/theatres";
 import { QueryState } from "@/components/ui/query-state";
@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { common } from "@/i18n/common";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 type FieldKey = "sourceTheatreId" | "theatreUuid" | "name" | "displayName" | "address" | "city" | "state" | "country" | "postalCode" | "chain" | "timezone" | "contactName" | "phone" | "email";
 type ComparisonField = { key: FieldKey; label: string; incoming: string; current: string };
@@ -46,7 +47,7 @@ const buildFields = (feed: FlmFeed, theatre: Theatre): ComparisonField[] => {
   ];
 };
 
-const ReadonlyRow = ({ label, value }: { label: string; value: string }) => (
+const ReadonlyRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="border-b border-border py-3 last:border-b-0">
     <p className="text-xs text-muted-foreground">{label}</p>
     <p className="mt-1 text-sm font-medium break-words">{value || "—"}</p>
@@ -58,7 +59,7 @@ const IncomingSummary = ({ feed }: { feed: FlmFeed }) => {
   const details = feed.details;
   return (
     <div className="space-y-0">
-      <ReadonlyRow label="Theatre Name" value={feed.theatreName} />
+      <ReadonlyRow label="Theatre Name" value={feed.theatreName ? <TheatreNameWithInfo name={feed.theatreName} details={feedTheatreDetails(feed)} nameClassName="" /> : ""} />
       <ReadonlyRow label="Display Name" value={feed.theatreDisplayName} />
       <ReadonlyRow label="Source Theatre ID" value={feed.theatreIdFeed} />
       <ReadonlyRow label="Theatre UUID" value={feed.theatreUuid} />
@@ -152,7 +153,7 @@ const ComparisonTable = ({ feed, theatre, fields, differences, selectedFields, s
         <div className="flex items-start justify-between px-5 py-4">
           <div>
             <p className="font-semibold">Mapped Theatre (current)</p>
-            <p className="text-sm text-muted-foreground">{theatre.name}</p>
+            <p className="text-sm text-muted-foreground"><TheatreNameWithInfo name={theatre.name} theatreRef={theatre.id} nameClassName="" /></p>
           </div>
           {isActionable && differences.length > 0 && (
             <Button variant="ghost" size="sm" onClick={() => setSelectedFields(new Set())}>
@@ -279,7 +280,7 @@ const FlmFeedDetailsView = ({ feed, theatres }: { feed: FlmFeed; theatres: Theat
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" aria-label="Back to FLM Feeds" onClick={() => navigate("/theatres/flm-feeds")}><ArrowLeft className="h-4 w-4" /></Button>
-          <div><p className="font-semibold">{feed.theatreName}</p><p className="text-sm text-muted-foreground">{feed.source} · {feed.theatreIdFeed}</p></div>
+          <div><p className="font-semibold"><TheatreNameWithInfo name={feed.theatreName} details={feedTheatreDetails(feed)} nameClassName="" /></p><p className="text-sm text-muted-foreground">{feed.source} · {feed.theatreIdFeed}</p></div>
         </div>
         <div className="flex gap-2"><Badge variant="outline">{feed.status}</Badge><Badge variant={feed.isNewTheatre ? "default" : "secondary"}>{feed.isNewTheatre ? "New Theatre" : "Existing Theatre"}</Badge></div>
       </div>

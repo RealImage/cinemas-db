@@ -10,6 +10,7 @@ import { QueryState } from "@/components/ui/query-state";
 import { PermanentDeleteTheatreDialog, type PermanentDeleteTarget } from "@/components/theatres/TheatreDeletionDialogs";
 import { permanentDeleteAllowed, useNow, useRestoreTheatreAction } from "@/components/theatres/theatreDeletion";
 import { useReviewTheatreDeletion, useTheatreDeletions } from "@/hooks/api/approvals";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 import { formatDateTime } from "@/lib/dateUtils";
 import { common } from "@/i18n/common";
 import { THEATRE_PERMANENT_DELETE_HOURS, type TheatreDeletionRequest } from "@/types";
@@ -17,7 +18,7 @@ import { THEATRE_PERMANENT_DELETE_HOURS, type TheatreDeletionRequest } from "@/t
 type Review = { request: TheatreDeletionRequest; decision: "approve" | "reject" };
 
 const baseColumns: Column<TheatreDeletionRequest>[] = [
-  { header: "Theatre", accessor: "theatreName", sortable: true },
+  { header: "Theatre", accessor: "theatreName", sortable: true, cell: (r) => <TheatreNameWithInfo name={r.theatreName} theatreRef={r.theatreId} nameClassName="" /> },
   { header: "Chain", accessor: "chainName", sortable: true },
   { header: "City", accessor: "city", sortable: true },
   { header: "Screens", accessor: "screenCount", sortable: true },
