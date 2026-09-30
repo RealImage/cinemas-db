@@ -280,25 +280,28 @@ export function DataTable<T extends { id: string }>({
   
   return (
     <div className="w-full space-y-4 animate-fade-in">
-      {searchable && (
-        <SearchExport
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          searchPlaceholder={searchPlaceholder}
-          onExport={handleExport}
-          exporting={exporting}
-        >
-          {showFilters && columns.some((c) => c.filterable) && (
-            <Filters
-              columns={columns}
-              activeFilters={activeFilters}
-              applyFilters={applyFilters}
-              getFilterOptions={getFilterOptions}
-            />
-          )}
-          {toolbar}
-        </SearchExport>
-      )}
+      <SearchExport
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        searchPlaceholder={searchPlaceholder}
+        onExport={handleExport}
+        exporting={exporting}
+        showSearch={searchable}
+      >
+        {searchable && (
+          <>
+            {showFilters && columns.some((c) => c.filterable) && (
+              <Filters
+                columns={columns}
+                activeFilters={activeFilters}
+                applyFilters={applyFilters}
+                getFilterOptions={getFilterOptions}
+              />
+            )}
+            {toolbar}
+          </>
+        )}
+      </SearchExport>
       {subToolbar}
       
       <div className="rounded-md border overflow-hidden animate-scale-in">

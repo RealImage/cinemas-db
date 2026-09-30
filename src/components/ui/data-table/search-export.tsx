@@ -12,6 +12,7 @@ interface SearchExportProps {
   onExport: (format: ExportFormat) => void;
   /** An export is being built: the button shows a spinner and can't start another. */
   exporting?: boolean;
+  showSearch?: boolean;
   children?: React.ReactNode;
 }
 
@@ -21,19 +22,22 @@ export function SearchExport({
   searchPlaceholder,
   onExport,
   exporting = false,
+  showSearch = true,
   children
 }: SearchExportProps) {
   return (
     <div className="flex items-center gap-2">
-      <div className="relative flex-1">
-        <Search className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder={searchPlaceholder}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-8"
-        />
-      </div>
+      {showSearch && (
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={searchPlaceholder}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+      )}
 
       {children}
 

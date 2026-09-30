@@ -21,7 +21,7 @@ export function toCsv({ headers, rows }: ExportTable): string {
   const field = (v: ExportCell) => {
     // Text that a spreadsheet would run as a formula gets a leading apostrophe; real numbers are left alone
     const raw = v == null ? "" : String(v);
-    const s = typeof v === "string" && /^[=+\-@\t\r]/.test(raw) && !/^-?\d/.test(raw) ? `'${raw}` : raw;
+    const s = typeof v === "string" && /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return "﻿" + [headers, ...rows].map((r) => r.map(field).join(",")).join("\r\n") + "\r\n";
