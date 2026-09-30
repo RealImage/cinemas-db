@@ -14,7 +14,7 @@ const CHAIN_SELECT = `
                    FROM chain_tms x JOIN credential_devices d ON d.id = x.device_id WHERE x.chain_id = c.id), '[]') AS tms
   FROM chains c LEFT JOIN companies co ON co.id = c.company_id`;
 
-chains.get("/", async (c) => c.json(await query<Chain>(`${CHAIN_SELECT} ORDER BY c.name`)));
+chains.get("/", async (c) => c.json(await query<Chain>(`${CHAIN_SELECT} WHERE c.status <> 'Deleted' ORDER BY c.name`)));
 
 chains.get("/:id", async (c) => {
   const [row] = await query<Chain>(`${CHAIN_SELECT} WHERE c.id = $1`, [c.req.param("id")]);

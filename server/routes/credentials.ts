@@ -405,12 +405,15 @@ credentials.delete("/devices/:id/credentials/:credentialId", async (c) => {
 
 credentials.get("/ref-options", async (c) => {
   const [chainRows, theatreRows] = await Promise.all([
-    query<{ name: string }>("SELECT DISTINCT name FROM chains WHERE name <> ''"),
+    query<{ name: string; deleted: boolean }>("SELECT DISTINCT name, status = 'Deleted' AS deleted FROM chains WHERE name <> ''"),
     query<{ name: string }>("SELECT DISTINCT name FROM theatres WHERE name <> ''"),
   ]);
   const sorted = (names: string[]) => Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+  // A Deleted chain is never offered, even when its name is one of the extra names; extras with no chain row stay
+  const live = new Set(chainRows.filter((r) => !r.deleted).map((r) => r.name));
+  const deleted = new Set(chainRows.filter((r) => r.deleted && !live.has(r.name)).map((r) => r.name));
   return c.json({
-    chains: sorted([...chainRows.map((r) => r.name), ...extraChainNames]),
+    chains: sorted([...live, ...extraChainNames.filter((name) => !deleted.has(name))]),
     theatres: sorted(theatreRows.map((r) => r.name)),
   });
 });
