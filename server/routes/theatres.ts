@@ -9,7 +9,7 @@ import { configurationsFor } from "./wtf";
 import {
   DELETION_SELECT, PERMANENT_DELETE_FROM, assertNotDeleted, commentsField, formatUtc, lockTheatre,
 } from "../theatreDeletion";
-import { LIVE_WIRE_AGENT, type ConfigFieldDef } from "../../src/data/agentConfigData";
+import { LIVE_WIRE_AGENT, type ConfigFieldDef, type ConfigScope } from "../../src/data/agentConfigData";
 import type { TheatreLiveWire } from "../../src/data/wtfData";
 import {
   THEATRE_DELETION_REASON_TYPE, THEATRE_LISTINGS, type Company, type TheatreDeletionRequest, type DashboardStats, type Screen, type Theatre, type TheatreMapping, type TheatreSystemOptions,
@@ -853,8 +853,9 @@ theatres.get("/:id/livewire", async (c) => {
     `SELECT t.name, c.name AS chain FROM theatres t LEFT JOIN chains c ON c.id = t.chain_id WHERE t.id = $1`,
     [c.req.param("id")]);
   if (!t) throw notFound("Theatre");
-  const [agent] = await query<{ id: string; fields: ConfigFieldDef[] }>(
-    "SELECT id, config_fields AS fields FROM fleet_images WHERE agent_os_name = $1 ORDER BY id LIMIT 1", [LIVE_WIRE_AGENT]);
+  const [agent] = await query<{ id: string; fields: ConfigFieldDef[]; levels: ConfigScope[] }>(
+    "SELECT id, config_fields AS fields, config_levels AS levels FROM fleet_images WHERE agent_os_name = $1 ORDER BY id LIMIT 1",
+    [LIVE_WIRE_AGENT]);
   const result: TheatreLiveWire = agent
     ? { imageId: agent.id, configuration: (await configurationsFor([agent], t.chain ?? "", t.name)).get(agent.id) ?? [] }
     : { imageId: null, configuration: [] };

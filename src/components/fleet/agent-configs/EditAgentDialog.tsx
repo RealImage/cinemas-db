@@ -9,7 +9,10 @@ import {
   AgentDetails,
   AgentUpdateInput,
   ConfigFieldDef,
+  ConfigScope,
   ConfigValueType,
+  configScopeIds,
+  configScopes,
   configValueTypeLabels,
   configValueTypes,
   allEntitlements,
@@ -40,12 +43,14 @@ const toRow = (f: ConfigFieldDef): FieldRow => ({ ...f, rowId: `cfg-${++rowSeq}`
 export const EditAgentDialog = ({ open, onOpenChange, agent, onSave, saving = false }: Props) => {
   const [entitlements, setEntitlements] = useState<string[]>([]);
   const [fields, setFields] = useState<FieldRow[]>([]);
+  const [levels, setLevels] = useState<ConfigScope[]>([]);
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setEntitlements(normalizeEntitlements(agent.entitlements));
     setFields(agent.configFields.map(toRow));
+    setLevels(agent.configLevels);
     setSubmitted(false);
   }, [open, agent]);
 
@@ -57,7 +62,11 @@ export const EditAgentDialog = ({ open, onOpenChange, agent, onSave, saving = fa
   const names = fields.map((f) => f.name.trim().toLowerCase());
   const fieldError = (row: FieldRow, i: number) =>
     !row.name.trim() ? "Name is required" : names.indexOf(row.name.trim().toLowerCase()) !== i ? "Name is used twice" : null;
-  const valid = fields.every((r, i) => !fieldError(r, i));
+  const levelsError = levels.length === 0 ? "Choose at least one level" : null;
+  const valid = fields.every((r, i) => !fieldError(r, i)) && !levelsError;
+  const toggleLevel = (id: ConfigScope, on: boolean) =>
+    setLevels((ids) => configScopeIds.filter((l) => (l === id ? on : ids.includes(l))));
+  const hiddenRows = configScopes.filter((s) => agent.configLevels.includes(s.id) && !levels.includes(s.id));
 
   const formatChanged =
     JSON.stringify(agent.configFields.map((f) => [f.key, f.name, f.valueType, f.masked])) !==
@@ -69,6 +78,7 @@ export const EditAgentDialog = ({ open, onOpenChange, agent, onSave, saving = fa
     if (!valid) return;
     onSave({
       entitlements,
+      configLevels: levels,
       configFields: fields.map(({ key, name, valueType, masked }) => ({ key, name: name.trim(), valueType, masked })),
     }).then(() => onOpenChange(false), () => undefined);
   };
@@ -78,7 +88,7 @@ export const EditAgentDialog = ({ open, onOpenChange, agent, onSave, saving = fa
       <DialogContent className="max-w-2xl gap-0 p-0">
         <DialogHeader className="border-b border-border px-5 py-4">
           <DialogTitle>Edit agent — {agent.agentOsName}</DialogTitle>
-          <DialogDescription>Entitlements and the configurations this agent takes.</DialogDescription>
+          <DialogDescription>Entitlements, the levels configurations are set at, and the configurations this agent takes.</DialogDescription>
         </DialogHeader>
 
         <div className="max-h-[70vh] space-y-5 overflow-y-auto px-5 py-4">
@@ -99,6 +109,30 @@ export const EditAgentDialog = ({ open, onOpenChange, agent, onSave, saving = fa
                 </label>
               ))}
             </div>
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <legend className="mb-1 text-xs font-medium">Configurations level</legend>
+            <p className="text-xs text-muted-foreground">The levels configurations can be set at. Only these tabs are shown.</p>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              {configScopes.map((s) => (
+                <label key={s.id} className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={levels.includes(s.id)}
+                    onCheckedChange={(c) => toggleLevel(s.id, c === true)}
+                    aria-invalid={submitted && !!levelsError}
+                    aria-describedby={submitted && levelsError ? "config-levels-error" : undefined}
+                  />
+                  {s.label}
+                </label>
+              ))}
+            </div>
+            {submitted && levelsError && <p id="config-levels-error" className="text-xs text-red-500">{levelsError}</p>}
+            {hiddenRows.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {hiddenRows.map((s) => s.label).join(" and ")} configurations already saved are kept, but hidden and no longer applied.
+              </p>
+            )}
           </fieldset>
 
           <fieldset className="space-y-2">
