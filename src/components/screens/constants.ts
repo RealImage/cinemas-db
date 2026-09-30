@@ -15,11 +15,3 @@ export const deviceModelsList = {
 };
 export const deviceRolesList = ["SM", "LD", "PR", "OBAE", "PLY", "PRC", "REALD", "ATMOS"];
 export const tempClosureReasonsList = ["Renovation", "Maintenance", "Natural Disaster", "Fire", "Flood", "COVID-19", "Other"];
-export const soundMixOptions = [
-  { id: "5.1", label: "5.1 Surround Sound" },
-  { id: "7.1", label: "7.1 Surround Sound" },
-  { id: "atmos", label: "Dolby Atmos" },
-  { id: "auro", label: "Auro 3D" },
-  { id: "dtsx", label: "DTS:X" },
-  { id: "imax", label: "IMAX Enhanced" }
-];
