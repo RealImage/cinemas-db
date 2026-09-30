@@ -133,6 +133,7 @@ export const ScopedCredentialsTab = ({ device, scope, credentials }: Props) => {
       ) : (
         <DataTable
           data={rows}
+          exportName={`${scopeInfo.label} Credentials`}
           columns={columns}
           searchPlaceholder={`Search ${scopeInfo.label.toLowerCase()}...`}
           actions={actions}

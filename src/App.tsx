@@ -49,6 +49,7 @@ import EnvironmentManager from "./pages/EnvironmentManager";
 import ProjectionManager from "./pages/ProjectionManager";
 import ApprovalsConflicts from "./pages/ApprovalsConflicts";
 import CompanyClaims from "./pages/CompanyClaims";
+import TheatreDeletions from "./pages/TheatreDeletions";
 import Partners from "./pages/Partners";
 import NotFound from "./pages/NotFound";
 
@@ -127,6 +128,7 @@ const App = () => (
             <Route path="/approvals-conflicts" element={<ApprovalsConflicts />} />
             <Route path="/approvals-conflicts/company-claims" element={<CompanyClaims />} />
             <Route path="/approvals-conflicts/partners" element={<Partners />} />
+            <Route path="/approvals-conflicts/theatre-deletions" element={<TheatreDeletions />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Route>

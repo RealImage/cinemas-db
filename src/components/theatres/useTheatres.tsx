@@ -1,11 +1,10 @@
 import { Theatre } from "@/types";
 import { toast } from "sonner";
-import { useDeleteTheatre, useSetTheatreStatus, useUpdateTheatre } from "@/hooks/api/theatres";
+import { useSetTheatreStatus, useUpdateTheatre } from "@/hooks/api/theatres";
 
 /** Theatre list actions, persisted through the API with success/error toasts. */
 export const useTheatreHandlers = () => {
   const updateTheatre = useUpdateTheatre();
-  const deleteTheatre = useDeleteTheatre();
   const setStatus = useSetTheatreStatus();
 
   const handleSaveTheatre = async (theatreData: Partial<Theatre>, editingTheatre?: Theatre) => {
@@ -19,17 +18,6 @@ export const useTheatreHandlers = () => {
     }
   };
 
-  const handleDeleteTheatre = async (theatre: Theatre) => {
-    try {
-      await deleteTheatre.mutateAsync(theatre.id);
-      toast.success(`Theatre "${theatre.name}" deleted successfully`);
-      return true;
-    } catch (err) {
-      toast.error(`Could not delete theatre: ${(err as Error).message}`);
-      return false;
-    }
-  };
-
   const handleToggleStatus = async (theatre: Theatre) => {
     const newStatus = theatre.status === "Active" ? "Inactive" : "Active";
     try {
@@ -40,5 +28,5 @@ export const useTheatreHandlers = () => {
     }
   };
 
-  return { handleSaveTheatre, handleDeleteTheatre, handleToggleStatus, deleting: deleteTheatre.isPending };
+  return { handleSaveTheatre, handleToggleStatus };
 };

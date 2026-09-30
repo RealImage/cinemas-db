@@ -7,3 +7,4 @@ export * from './table-body';
 export * from './filters';
 export * from './search-export';
 export * from './pagination';
+export * from './export-data';

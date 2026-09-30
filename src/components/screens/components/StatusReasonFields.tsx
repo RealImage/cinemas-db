@@ -1,31 +1,32 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useScreenStatusReasons } from "@/hooks/api/screens";
-import { SCREEN_STATUS_REASON_TYPES, type Screen } from "@/types";
+import { cn } from "@/lib/utils";
+import { useStatusReasons } from "@/hooks/api/screens";
+import { SCREEN_STATUS_REASON_TYPES, type Screen, type StatusReasonType } from "@/types";
 
-/** Reason (required) and comments for an Inactive or Deleted screen; renders nothing for an Active one. */
-export function StatusReasonFields({ status, reasonId, comments, onChange, error, idPrefix = "status" }: {
-  status: Screen["status"] | undefined;
+/** A reason (required) from one of the status reason lists, plus optional comments. */
+export function ReasonFields({ reasonType, label, reasonId, comments, onChange, error, idPrefix = "status", stacked = false }: {
+  reasonType: StatusReasonType;
+  label: string;
   reasonId: string | null | undefined;
   comments: string | null | undefined;
-  onChange: (patch: Pick<Screen, "statusReasonId" | "statusComments">) => void;
+  onChange: (patch: { reasonId: string | null; comments: string }) => void;
   error?: string;
   idPrefix?: string;
+  /** One field per row (in a narrow dialog) instead of side by side. */
+  stacked?: boolean;
 }) {
-  const reasonType = status === "Inactive" || status === "Deleted" ? SCREEN_STATUS_REASON_TYPES[status] : null;
-  const reasonsQuery = useScreenStatusReasons(!!reasonType);
-  if (!reasonType) return null;
+  const reasonsQuery = useStatusReasons();
   const options = (reasonsQuery.data ?? []).filter((r) => r.reasonType === reasonType);
-  const label = status === "Inactive" ? "Reason for deactivating" : "Reason for deleting";
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div className={cn("grid grid-cols-1 gap-4", !stacked && "md:grid-cols-2")}>
       <div className="space-y-2">
         <Label htmlFor={`${idPrefix}-reason`}>{label}</Label>
         <Select
           value={options.some((o) => o.id === reasonId) ? reasonId! : ""}
-          onValueChange={(v) => onChange({ statusReasonId: v, statusComments: comments ?? "" })}
+          onValueChange={(v) => onChange({ reasonId: v, comments: comments ?? "" })}
           disabled={!reasonsQuery.data}
         >
           <SelectTrigger
@@ -55,9 +56,32 @@ export function StatusReasonFields({ status, reasonId, comments, onChange, error
         <Input
           id={`${idPrefix}-comments`}
           value={comments ?? ""}
-          onChange={(e) => onChange({ statusReasonId: reasonId ?? null, statusComments: e.target.value })}
+          onChange={(e) => onChange({ reasonId: reasonId ?? null, comments: e.target.value })}
         />
       </div>
     </div>
+  );
+}
+
+/** Reason (required) and comments for an Inactive or Deleted screen; renders nothing for an Active one. */
+export function StatusReasonFields({ status, reasonId, comments, onChange, error, idPrefix = "status" }: {
+  status: Screen["status"] | undefined;
+  reasonId: string | null | undefined;
+  comments: string | null | undefined;
+  onChange: (patch: Pick<Screen, "statusReasonId" | "statusComments">) => void;
+  error?: string;
+  idPrefix?: string;
+}) {
+  if (status !== "Inactive" && status !== "Deleted") return null;
+  return (
+    <ReasonFields
+      reasonType={SCREEN_STATUS_REASON_TYPES[status]}
+      label={status === "Inactive" ? "Reason for deactivating" : "Reason for deleting"}
+      reasonId={reasonId}
+      comments={comments}
+      onChange={(p) => onChange({ statusReasonId: p.reasonId, statusComments: p.comments })}
+      error={error}
+      idPrefix={idPrefix}
+    />
   );
 }

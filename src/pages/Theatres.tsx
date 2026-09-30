@@ -8,20 +8,20 @@ import { TheatreDialog } from "@/components/TheatreDialog";
 import { AddTheatreDialog } from "@/components/AddTheatreDialog";
 import { ViewTheatreDialog } from "@/components/ViewTheatreDialog";
 import { TheatreLogsDialog } from "@/components/TheatreLogsDialog";
-import { DeleteTheatreDialog } from "@/components/DeleteTheatreDialog";
 import { TheatreTable } from "@/components/theatres/TheatreTable";
 import { WtfSheet } from "@/components/theatres/WtfSheet";
 import { useTheatreHandlers } from "@/components/theatres/useTheatres";
+import { useTheatreDeletion } from "@/components/theatres/useTheatreDeletion";
 
 const Theatres = () => {
-  const { handleSaveTheatre, handleDeleteTheatre, handleToggleStatus } = useTheatreHandlers();
+  const { handleSaveTheatre, handleToggleStatus } = useTheatreHandlers();
+  const deletion = useTheatreDeletion();
   
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [logsDialogOpen, setLogsDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   
   // Selected theatre states
   const [editingTheatre, setEditingTheatre] = useState<Theatre | undefined>(undefined);
@@ -49,17 +49,6 @@ const Theatres = () => {
     void handleToggleStatus(theatre);
   };
   
-  const handleDeleteTheatreClick = (theatre: Theatre) => {
-    setSelectedTheatre(theatre);
-    setDeleteDialogOpen(true);
-  };
-  
-  const confirmDeleteTheatre = async () => {
-    if (selectedTheatre && (await handleDeleteTheatre(selectedTheatre))) {
-      setDeleteDialogOpen(false);
-    }
-  };
-  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -81,7 +70,7 @@ const Theatres = () => {
         onViewLogs={handleViewLogs}
         onViewWtf={setWtfTheatre}
         onToggleStatus={handleToggleTheatreStatus}
-        onDelete={handleDeleteTheatreClick}
+        onDelete={deletion.onDelete}
       />
       
       <WtfSheet theatreId={wtfTheatre?.id ?? null} theatreName={wtfTheatre?.name} onOpenChange={(open) => { if (!open) setWtfTheatre(null); }} />
@@ -111,12 +100,7 @@ const Theatres = () => {
         theatre={selectedTheatre}
       />
       
-      <DeleteTheatreDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        theatre={selectedTheatre}
-        onConfirmDelete={confirmDeleteTheatre}
-      />
+      {deletion.dialogs}
     </motion.div>
   );
 };
