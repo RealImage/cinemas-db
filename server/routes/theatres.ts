@@ -766,6 +766,7 @@ theatres.post("/:id/deletion-request", async (c) => {
   const request = await transaction(async (client) => {
     const theatre = await lockTheatre(client, id);
     if (theatre.status === "Deleted") throw httpError(409, "This theatre is already deleted");
+    if (theatre.status === "Active") throw httpError(409, "Deactivate or close the theatre before requesting its deletion");
     const { rows: [open] } = await client.query<{ requested_by: string }>(
       "SELECT requested_by FROM theatre_deletion_requests WHERE theatre_id = $1 AND status = 'Pending'", [id]);
     if (open) throw httpError(409, `${open.requested_by} has already requested this theatre's deletion; it's waiting for approval`);
@@ -887,12 +888,15 @@ theatres.post("/:id/wiretap-devices/:deviceId/pull-out", async (c) => {
   const { id, deviceId } = c.req.param();
   const { reason, comments } = await c.req.json<{ reason?: string; comments?: string }>();
   if (!reason?.trim()) throw httpError(400, "A pull-out reason is required");
-  const rows = await query(
+  const rows = await transaction(async (client) => {
+    assertNotDeleted(await lockTheatre(client, id));
+    return (await client.query(
     `UPDATE wiretap_devices SET pull_out_status = 'Pulled Out', mapping_status = 'Unmapped',
             pull_out_date = current_date, pull_out_reason = $3, updated_by = $4
      WHERE id = $1 AND theatre_id = $2 AND pull_out_status <> 'Pulled Out' RETURNING id`,
     [deviceId, id, comments?.trim() ? `${reason.trim()}: ${comments.trim()}` : reason.trim(), CURRENT_USER],
-  );
+    )).rows;
+  });
   if (rows.length === 0) throw notFound("Installed WireTAP device at this theatre");
   const [device] = await query<WireTAPDevice>(`SELECT ${WIRETAP_COLUMNS} ${WIRETAP_FROM} WHERE d.id = $1`, [deviceId]);
   return c.json(device);

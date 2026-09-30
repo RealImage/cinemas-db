@@ -75,8 +75,11 @@ function ReviewDialog({ review, onOpenChange }: { review: Review | null; onOpenC
             value={comments}
             onChange={(e) => setComments(e.target.value)}
             aria-invalid={tried && rejecting && !comments.trim()}
+            aria-describedby={tried && rejecting && !comments.trim() ? "deletion-review-comments-error" : undefined}
           />
-          {tried && rejecting && !comments.trim() && <p className="text-xs text-red-500">Say why the deletion is rejected</p>}
+          {tried && rejecting && !comments.trim() && (
+            <p id="deletion-review-comments-error" role="alert" className="text-xs text-red-500">Say why the deletion is rejected</p>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>{common.cancel}</Button>

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
+import { assertNotDeleted } from "../theatreDeletion";
 import type { WireTAPDevice, WireTAPDeviceDetail, WireTAPTheatreOption } from "../../src/types/wireTAP";
 
 export const wiretap = new Hono();
@@ -131,8 +132,9 @@ async function validateForm(form: DeviceForm) {
   if (mapped) {
     theatreId = str(form.theatreId);
     if (!theatreId) throw httpError(400, "Theatre selection is required when mapping status is Yes");
-    const [t] = await query("SELECT 1 FROM theatres WHERE id = $1", [theatreId]);
+    const [t] = await query<{ status: string }>("SELECT status FROM theatres WHERE id = $1", [theatreId]);
     if (!t) throw notFound("Theatre");
+    assertNotDeleted(t);
   } else if (!str(form.noMappingReason)) {
     throw httpError(400, "Reason for no mapping is required");
   }
@@ -190,6 +192,10 @@ wiretap.post("/", async (c) => {
  */
 wiretap.put("/:id", async (c) => {
   const f = await validateForm(await c.req.json<DeviceForm>());
+  // Nor can a device be moved off (or edited on) a deleted theatre
+  const [current] = await query<{ status: string }>(
+    "SELECT t.status FROM wiretap_devices d JOIN theatres t ON t.id = d.theatre_id WHERE d.id = $1", [c.req.param("id")]);
+  if (current) assertNotDeleted(current);
   try {
     const rows = await query(
       `UPDATE wiretap_devices SET
