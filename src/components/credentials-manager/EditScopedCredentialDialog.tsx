@@ -181,7 +181,12 @@ export const EditScopedCredentialDialog = ({ open, onOpenChange, device, scope, 
             <div key={f.key} className="space-y-1">
               <Label htmlFor={`cred-${f.key}`} className="text-xs">
                 {f.name}
-                {f.mandatory && <span className="text-red-500" aria-hidden="true"> *</span>}
+{f.mandatory && (
+  <>
+    <span className="text-red-500" aria-hidden="true"> *</span>
+    <span className="sr-only"> (required)</span>
+  </>
+)}
                 {f.valueType === "numeric" && <span className="font-normal text-muted-foreground"> (numeric)</span>}
                 {!f.mandatory && <span className="font-normal text-muted-foreground"> (optional)</span>}
               </Label>
