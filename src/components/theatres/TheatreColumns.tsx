@@ -5,6 +5,7 @@ import { Column } from "@/components/ui/data-table"; // Import the Column type f
 import { formatDate } from "@/lib/dateUtils";
 import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 import { TagButton } from "@/components/theatres/TheatreTags";
+import { formatTheatreAddress } from "@/data/theatreSummary";
 import { THEATRE_LISTINGS } from "@/types";
 import { LISTING_NOT_SET, type TheatreFacets, type TheatrePage, type TheatreTag } from "@/data/theatreSearch";
 
@@ -45,6 +46,7 @@ export const useTheatreColumns = ({ onTag }: { onTag: (tag: TheatreTag) => void 
     {
       header: "Location",
       accessor: "address",
+      exportValue: (row) => formatTheatreAddress(row),
       cell: (row) => {
         const places: TheatreTag[] = [
           { kind: "city", value: row.city },
@@ -77,6 +79,7 @@ export const useTheatreColumns = ({ onTag }: { onTag: (tag: TheatreTag) => void 
     {
       header: "Listing",
       accessor: "listing",
+      exportValue: (row) => row.listing || LISTING_NOT_SET,
       cell: (row) => row.listing
         ? <span className="whitespace-nowrap text-sm">{row.listing}</span>
         : <span className="text-xs text-muted-foreground">{LISTING_NOT_SET}</span>,
@@ -105,6 +108,7 @@ export const useTheatreColumns = ({ onTag }: { onTag: (tag: TheatreTag) => void 
     {
       header: "WireTAP",
       accessor: "wireTap",
+      exportValue: (row) => (row.wireTAPDevices ?? []).map((d) => d.serialNumber).join(", "),
       cell: (row) => {
         const wireTapSerials = (row.wireTAPDevices ?? []).map((d) => d.serialNumber);
         
@@ -138,6 +142,7 @@ export const useTheatreColumns = ({ onTag }: { onTag: (tag: TheatreTag) => void 
     {
       header: "Last Updated",
       accessor: "updatedAt",
+      exportValue: (row) => (row.updatedAt ? formatDate(row.updatedAt) : null),
       cell: (row) => (
         <div className="flex items-center">
           <Calendar className="h-4 w-4 mr-1 text-muted-foreground" />

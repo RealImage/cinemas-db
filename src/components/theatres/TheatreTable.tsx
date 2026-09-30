@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable, exportTableData } from "@/components/ui/data-table";
 import type { Filter, SortDirection } from "@/components/ui/data-table/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Theatre } from "@/types";
@@ -9,7 +9,7 @@ import { useTheatreColumns, useEnhancedColumns, type TheatreListRow } from "./Th
 import { getTheatreActions, useTheatreActions } from "./TheatreActions";
 import { TagChips } from "./TheatreTags";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
-import { useTheatreFacets, useTheatrePage } from "@/hooks/api/theatres";
+import { fetchTheatreExport, useTheatreFacets, useTheatrePage } from "@/hooks/api/theatres";
 import {
   THEATRE_SEARCH_MODES, THEATRE_SEARCH_PLACEHOLDERS, isTheatreSearchMode, sameTag, type TheatreSearchMode, type TheatreTag,
 } from "@/data/theatreSearch";
@@ -39,9 +39,8 @@ export const TheatreTable = ({ onViewTheatre, onViewLogs, onViewWtf, onToggleSta
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [tags, setTags] = useState<TheatreTag[]>([]);
 
-  const pageQuery = useTheatrePage({
-    ...page, q: searchTerm, mode: searchMode, sort: sort.key, dir: sort.dir, filters, tags,
-  });
+  const listQuery = { q: searchTerm, mode: searchMode, sort: sort.key, dir: sort.dir, filters, tags };
+  const pageQuery = useTheatrePage({ ...page, ...listQuery });
   const facetsQuery = useTheatreFacets();
   const facets = facetsQuery.data;
 
@@ -65,6 +64,8 @@ export const TheatreTable = ({ onViewTheatre, onViewLogs, onViewWtf, onToggleSta
     setFilters(params);
     toFirstPage();
   };
+  // Every matching theatre, not just this page, with the list's columns
+  const handleExport = async () => exportTableData(columns, (await fetchTheatreExport(listQuery)).rows);
   const handleSortChange = (key: keyof TheatreListRow | null, direction: SortDirection) => {
     setSort(key && direction ? { key: String(key), dir: direction } : {});
     toFirstPage();
@@ -134,6 +135,8 @@ export const TheatreTable = ({ onViewTheatre, onViewLogs, onViewWtf, onToggleSta
         onSortChange={handleSortChange}
         onFilterChange={handleFilterChange}
         pageSize={DEFAULT_PAGE_SIZE}
+        exportName="Theatres"
+        onExport={handleExport}
       />
     </div>
   );

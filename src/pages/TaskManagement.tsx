@@ -251,6 +251,7 @@ const TaskManagement = () => {
         {() => (
       <DataTable
         data={tasks}
+        exportName="Tasks"
         columns={columns}
         searchable
         searchPlaceholder="Search by Task ID, Description, or Created By..."

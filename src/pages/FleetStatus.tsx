@@ -746,6 +746,7 @@ const FleetStatus = () => {
             {viewMode === "table" && (
               <DataTable
                 data={filteredData}
+                exportName="Fleet Status"
                 columns={columns}
                 searchable
                 searchPlaceholder="Search by Node ID, Theatre..."

@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type pg from "pg";
 import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
@@ -576,13 +576,12 @@ const TAG_CONDITIONS: Record<TheatreTagKind, (v: string) => string> = {
 };
 
 /**
- * One page of the Theatre List. ?page=&pageSize=&q=&mode=&sort=&dir=asc|desc, plus column filters (status, listing,
- * chain, company; "Not set" matches a blank listing) and tag chips (tag=kind:value, all must match). With a search
- * and no sort, the best matches come first, and each row says what matched.
+ * The Theatre List's query: ?q=&mode=&sort=&dir=asc|desc, plus column filters (status, listing, chain, company;
+ * "Not set" matches a blank listing) and tag chips (tag=kind:value, all must match). With a search and no sort, the
+ * best matches come first, and each row says what matched. Shared by /page and /export, so both list the same
+ * theatres in the same order.
  */
-theatres.get("/page", async (c) => {
-  const page = positiveInt("page", c.req.query("page"), 1);
-  const pageSize = Math.min(1000, positiveInt("pageSize", c.req.query("pageSize"), 100));
+function theatreListQuery(c: Context) {
   const params: unknown[] = [];
   const bind = (v: unknown) => { params.push(v); return `$${params.length}`; };
 
@@ -613,18 +612,45 @@ theatres.get("/page", async (c) => {
 
   const from = `${THEATRE_FROM}${ctes ? " JOIN ranked r ON r.id = t.id" : ""} WHERE ${where.join(" AND ")}`;
   const withClause = ctes ? `WITH ${ctes} ` : "";
-  const [{ total }] = await query<{ total: number }>(`${withClause}SELECT count(*)::int AS total ${from}`, params);
-  const rows = await query<TheatreRow & { matchedField?: string; matchedValue?: string }>(
-    `${withClause}SELECT ${THEATRE_COLUMNS}${ctes ? `, r.matched_field AS "matchedField", r.matched_value AS "matchedValue"` : ""}
-     ${from} ORDER BY ${order.join(", ")} LIMIT ${bind(pageSize)} OFFSET ${bind((page - 1) * pageSize)}`,
-    params,
-  );
-  const result: TheatrePage = {
-    rows: rows.map(({ matchedField, matchedValue, ...row }) => ({
-      ...toTheatre(row), ...(matchedField ? { match: { field: matchedField, value: matchedValue ?? "" } } : {}),
-    })),
-    total,
+  return {
+    /** How many theatres match. */
+    count: async () =>
+      (await query<{ total: number }>(`${withClause}SELECT count(*)::int AS total ${from}`, params))[0].total,
+    /** The matching theatres in list order, `limit` of them from `offset`. */
+    rows: async (limit: number, offset = 0) => {
+      const rows = await query<TheatreRow & { matchedField?: string; matchedValue?: string }>(
+        `${withClause}SELECT ${THEATRE_COLUMNS}${ctes ? `, r.matched_field AS "matchedField", r.matched_value AS "matchedValue"` : ""}
+         ${from} ORDER BY ${order.join(", ")} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset],
+      );
+      return rows.map(({ matchedField, matchedValue, ...row }): TheatrePage["rows"][number] => ({
+        ...toTheatre(row), ...(matchedField ? { match: { field: matchedField, value: matchedValue ?? "" } } : {}),
+      }));
+    },
   };
+}
+
+/** One page of the Theatre List: ?page=&pageSize=, plus the list query (above). */
+theatres.get("/page", async (c) => {
+  const page = positiveInt("page", c.req.query("page"), 1);
+  const pageSize = Math.min(1000, positiveInt("pageSize", c.req.query("pageSize"), 100));
+  const list = theatreListQuery(c);
+  const result: TheatrePage = { total: await list.count(), rows: await list.rows(pageSize, (page - 1) * pageSize) };
+  return c.json(result);
+});
+
+/** Most theatres one export may hold. */
+const EXPORT_LIMIT = 50_000;
+
+/** Every theatre the Theatre List matches (the list query, unpaged), for its CSV / Excel export. */
+theatres.get("/export", async (c) => {
+  const list = theatreListQuery(c);
+  const total = await list.count();
+  if (total > EXPORT_LIMIT) {
+    const n = (v: number) => v.toLocaleString("en-US");
+    throw httpError(422, `${n(total)} theatres match, and an export holds at most ${n(EXPORT_LIMIT)}. Narrow the search or filters and try again.`);
+  }
+  const result: TheatrePage = { total, rows: await list.rows(EXPORT_LIMIT) };
   return c.json(result);
 });
 
