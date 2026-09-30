@@ -102,3 +102,21 @@ export function TagChips({
     </div>
   );
 }
+
+/** City, province and country tags under a theatre's name (the full address on hover); clicking one filters by it. */
+export const TheatreLocation = ({ row, onTag }: {
+  row: { city?: string | null; state?: string | null; country?: string | null; address?: string | null };
+  onTag: (tag: TheatreTag) => void;
+}) => {
+  const places: TheatreTag[] = [
+    { kind: "city", value: row.city },
+    { kind: "province", value: row.state },
+    { kind: "country", value: row.country },
+  ].filter((t): t is TheatreTag => !!t.value);
+  if (!places.length) return <div className="text-xs text-muted-foreground">{row.address || "Location not set"}</div>;
+  return (
+    <div className="flex flex-wrap gap-1" title={row.address || undefined}>
+      {places.map((tag) => <TagButton key={tag.kind} tag={tag} onTag={onTag} />)}
+    </div>
+  );
+};

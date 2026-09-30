@@ -5,7 +5,7 @@ import { DataTable, exportTableData } from "@/components/ui/data-table";
 import type { Filter, SortDirection } from "@/components/ui/data-table/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Theatre } from "@/types";
-import { useTheatreColumns, useEnhancedColumns, type TheatreListRow } from "./TheatreColumns";
+import { theatreLocationExportColumn, useTheatreColumns, useEnhancedColumns, type TheatreListRow } from "./TheatreColumns";
 import { getTheatreActions, useTheatreActions, type TheatreDeleteAction } from "./TheatreActions";
 import { TagChips } from "./TheatreTags";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
@@ -65,7 +65,9 @@ export const TheatreTable = ({ onViewTheatre, onViewLogs, onViewWtf, onToggleSta
     toFirstPage();
   };
   // Every matching theatre, not just this page, with the list's columns
-  const handleExport = async () => exportTableData(columns, (await fetchTheatreExport(listQuery)).rows);
+  // The export keeps Location as its own column, after the name
+  const exportColumns = [columns[0], theatreLocationExportColumn, ...columns.slice(1)];
+  const handleExport = async () => exportTableData(exportColumns, (await fetchTheatreExport(listQuery)).rows);
   const handleSortChange = (key: keyof TheatreListRow | null, direction: SortDirection) => {
     setSort(key && direction ? { key: String(key), dir: direction } : {});
     toFirstPage();
