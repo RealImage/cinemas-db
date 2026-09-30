@@ -53,6 +53,8 @@ export interface CredentialFieldDef {
   valueType: CredentialValueType;
   /** Masked values are stored encrypted and shown as •••• until explicitly revealed. */
   masked: boolean;
+  /** A credential can't be saved without a value for a mandatory field. */
+  mandatory: boolean;
 }
 
 /** Values of one credential set, keyed by CredentialFieldDef.key. */
@@ -76,8 +78,8 @@ export const describeCredentialFields = (fields: CredentialFieldDef[]) =>
   fields.length ? fields.map((f) => f.name).join(", ") : "No fields defined";
 
 export const DEFAULT_CREDENTIAL_FIELDS: CredentialFieldDef[] = [
-  { key: "username", name: "Username", valueType: "string", masked: false },
-  { key: "password", name: "Password", valueType: "string", masked: true },
+  { key: "username", name: "Username", valueType: "string", masked: false, mandatory: true },
+  { key: "password", name: "Password", valueType: "string", masked: true, mandatory: true },
 ];
 
 // ---------------------------------------------------------------------------
