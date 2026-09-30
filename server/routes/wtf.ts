@@ -5,7 +5,7 @@ import { theatreSystemName } from "../theatreSystems";
 import { CREDENTIAL_COLUMNS, type CredentialRow, toCredential } from "./credentials";
 import { CONFIG_COLUMNS, type ConfigRow, toConfiguration } from "./agentConfigs";
 import { GLOBAL_REF, type CredentialFieldDef } from "../../src/data/credentialsManagerData";
-import { normalizeEntitlements, type ConfigFieldDef } from "../../src/data/agentConfigData";
+import { normalizeEntitlements, type ConfigFieldDef, type ConfigScope } from "../../src/data/agentConfigData";
 import type { WtfAgent, WtfData, WtfScreenDevice } from "../../src/data/wtfData";
 import type { DeliveryTimeSlot, DownloadRestrictions, Projection, Sound } from "../../src/types";
 
@@ -149,8 +149,8 @@ async function screenDevices(theatreId: string, theatreName: string, chainName: 
  * applies here: per field, the theatre row, else the chain row, else Global.
  */
 async function theatreAgents(theatreId: string, theatreName: string, chainName: string): Promise<WtfAgent[]> {
-  const installed = await query<{ id: string; name: string; provider: string; entitlements: string[]; fields: ConfigFieldDef[]; versions: string[] }>(
-    `SELECT i.id, i.agent_os_name AS name, i.provider, i.entitlements, i.config_fields AS fields,
+  const installed = await query<{ id: string; name: string; provider: string; entitlements: string[]; fields: ConfigFieldDef[]; levels: ConfigScope[]; versions: string[] }>(
+    `SELECT i.id, i.agent_os_name AS name, i.provider, i.entitlements, i.config_fields AS fields, i.config_levels AS levels,
             array_agg(DISTINCT ni.version) FILTER (WHERE ni.version IS NOT NULL) AS versions
      FROM fleet_nodes n
      JOIN fleet_node_images ni ON ni.node_id = n.id
@@ -173,10 +173,10 @@ async function theatreAgents(theatreId: string, theatreName: string, chainName: 
 
 /**
  * Per agent, the configuration that applies at a theatre: for each field, the theatre row, else the chain row,
- * else Global. Masked values are never returned, only flagged.
+ * else Global, skipping levels the agent has turned off. Masked values are never returned, only flagged.
  */
 export async function configurationsFor(
-  agents: { id: string; fields: ConfigFieldDef[] }[], chainName: string, theatreName: string,
+  agents: { id: string; fields: ConfigFieldDef[]; levels: ConfigScope[] }[], chainName: string, theatreName: string,
 ): Promise<Map<string, WtfAgent["configuration"]>> {
   const configs = await query<ConfigRow>(
     `SELECT ${CONFIG_COLUMNS} FROM agent_configurations
@@ -184,7 +184,7 @@ export async function configurationsFor(
     [agents.map((a) => a.id), chainName, theatreName],
   );
   return new Map(agents.map((a) => {
-    const rows = configs.filter((c) => c.imageId === a.id).map((c) => toConfiguration(c, a.fields));
+    const rows = configs.filter((c) => c.imageId === a.id && a.levels.includes(c.scope)).map((c) => toConfiguration(c, a.fields));
     const ordered = ["theatre", "chain", "global"].map((scope) => rows.find((r) => r.scope === scope)).filter((r) => !!r);
     return [a.id, a.fields.map((field) => {
       const src = ordered.find((r) => r.maskedKeys.includes(field.key) || r.values[field.key] !== undefined);

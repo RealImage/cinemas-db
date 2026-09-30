@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QueryState } from "@/components/ui/query-state";
 import { formatDateTime } from "@/lib/dateUtils";
 import { ApiError } from "@/lib/api";
-import { AgentConfiguration, AgentDetails, AgentUpdateInput, IMAGE_MANAGEMENT_PATH, configScopes } from "@/data/agentConfigData";
+import { AgentConfiguration, AgentDetails, AgentUpdateInput, type ConfigScope, IMAGE_MANAGEMENT_PATH, configScopes } from "@/data/agentConfigData";
 import { useAgent, useAgentConfigurations, useUpdateAgent } from "@/hooks/api/agentConfigs";
 import { ConfigFieldsList, EntitlementsList } from "@/components/fleet/agent-configs/ConfigValues";
 import { ConfigurationsTab } from "@/components/fleet/agent-configs/ConfigurationsTab";
@@ -88,6 +88,11 @@ const AgentConfigurationsView = ({
           <Field label="Updated By" value={agent.updatedBy} />
           <Field label="Agent Entitlements" className="col-span-2" value={<EntitlementsList ids={agent.entitlements} />} />
           <Field label="Configurations Format" className="col-span-2" value={<ConfigFieldsList fields={agent.configFields} />} />
+          <Field
+            label="Configurations Level"
+            className="col-span-2"
+            value={<LevelsList levels={agent.configLevels} />}
+          />
           <Field label="Updated At" value={formatDateTime(agent.updatedAt)} />
         </CardContent>
       </Card>
@@ -108,29 +113,39 @@ const AgentConfigurationsView = ({
   );
 };
 
-/** Configurations by scope. `?scope=chain|theatre&ref=` opens on that tab, editing (or adding) that ref's row. */
+const LevelsList = ({ levels }: { levels: readonly ConfigScope[] }) => (
+  <div className="flex flex-wrap gap-1">
+    {configScopes.filter((s) => levels.includes(s.id)).map((s) => (
+      <Badge key={s.id} variant="secondary" className="font-normal">{s.label}</Badge>
+    ))}
+  </div>
+);
+
+/** Configurations by scope, one tab per level the agent allows. `?scope=chain|theatre&ref=` opens on that tab, editing (or adding) that ref's row. */
 const ConfigurationTabs = ({ agent, rows, onEditAgent }: { agent: AgentDetails; rows: AgentConfiguration[]; onEditAgent: () => void }) => {
   const [params, setParams] = useSearchParams();
   // Read the link once, then drop it from the URL so switching tabs or a reload doesn't reopen the dialog
   const [link, setLink] = useState(() => {
-    const scope = configScopes.find((s) => s.id === params.get("scope") && s.id !== "global");
+    const scope = configScopes.find((s) => s.id === params.get("scope") && s.id !== "global" && agent.configLevels.includes(s.id));
     const ref = params.get("ref");
     return scope && ref ? { scope: scope.id, ref } : null;
   });
   useEffect(() => {
     if (params.has("scope") || params.has("ref")) setParams({}, { replace: true });
   }, [params, setParams]);
+  const levels = configScopes.filter((s) => agent.configLevels.includes(s.id));
   return (
-    <Tabs defaultValue={link?.scope ?? "global"}>
+    // Remounts when the levels change, so a tab that was just turned off isn't left selected
+    <Tabs key={agent.configLevels.join()} defaultValue={link?.scope ?? levels[0]?.id}>
       <TabsList className="flex-wrap h-auto">
-        {configScopes.map((s) => (
+        {levels.map((s) => (
           <TabsTrigger key={s.id} value={s.id} className="gap-2">
             {s.label}
             <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{rows.filter((r) => r.scope === s.id).length}</Badge>
           </TabsTrigger>
         ))}
       </TabsList>
-      {configScopes.map((s) => (
+      {levels.map((s) => (
         <TabsContent key={s.id} value={s.id} className="mt-4">
           <ConfigurationsTab
             agent={agent}
