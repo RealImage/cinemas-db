@@ -23,6 +23,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
     if (path.startsWith("/theatres/flm-feeds/")) return "FLM Feed Details";
     if (path.startsWith("/theatre/") && path.endsWith("/edit")) return "Edit Theatre";
     if (path === "/chains") return "Chains";
+    if (path.startsWith("/chains/")) return "Edit Chain";
 
     // Devices Master
     if (path === "/theatre-device-management/screen-devices") return "Screen Device Management";

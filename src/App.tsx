@@ -10,6 +10,7 @@ import FLMFeeds from "./pages/FLMFeeds";
 import FlmFeedDetails from "./pages/FlmFeedDetails";
 import EditTheatre from "./pages/EditTheatre";
 import Chains from "./pages/Chains";
+import ChainEdit from "./pages/ChainEdit";
 import TDLDevices from "./pages/TDLDevices";
 import CredentialsManager from "./pages/CredentialsManager";
 import DeviceCredentials from "./pages/DeviceCredentials";
@@ -70,6 +71,7 @@ const App = () => (
             <Route path="/theatres/dashboard" element={<Navigate to="/approvals-conflicts" replace />} />
             <Route path="/theatre/:id/edit" element={<EditTheatre />} />
             <Route path="/chains" element={<Chains />} />
+            <Route path="/chains/:id" element={<ChainEdit />} />
             <Route path="/tdl-devices" element={<Navigate to="/theatre-device-management/tdl-devices" replace />} />
             {/* Theatre Device Management */}
             <Route path="/theatre-device-management" element={<Navigate to="/theatre-device-management/screen-devices" replace />} />

@@ -4,7 +4,7 @@ import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
 import { SCREEN_JSON, SCREEN_ORDER, saveScreen } from "./screens";
 import { screenListError } from "../../src/data/screenRules";
-import { SYSTEM_NAME, theatreSystemName } from "../theatreSystems";
+import { CHAIN_SYSTEMS, SYSTEM_NAME, theatreSystemName } from "../theatreSystems";
 import { configurationsFor } from "./wtf";
 import {
   DELETION_SELECT, PERMANENT_DELETE_FROM, assertNotDeleted, commentsField, formatUtc, lockTheatre,
@@ -334,7 +334,7 @@ async function saveSystems(client: pg.PoolClient, theatreId: string, body: Theat
     : { rows: [] as { name: string }[] };
 
   for (const [key, kind] of [["tmsId", "TMS"], ["ticketingSystemId", "Ticketing System"]] as const) {
-    const chainSaved = kind === "TMS" && "chainId" in body;
+    const chainSaved = "chainId" in body;
     if (!(key in body) && !chainSaved) continue;
     const { rows: [current] } = await client.query<{ device_id: string }>(
       "SELECT device_id FROM theatre_systems WHERE theatre_id = $1 AND kind = $2 FOR UPDATE", [theatreId, kind]);
@@ -348,13 +348,13 @@ async function saveSystems(client: pg.PoolClient, theatreId: string, body: Theat
     const { rows: [device] } = await client.query<{ name: string }>(
       `SELECT ${SYSTEM_NAME} AS name FROM credential_devices d WHERE d.id = $1 AND d.type = $2 FOR SHARE`, [wanted, kind]);
     if (!device) throw httpError(400, `${wanted} isn't a ${kind} in the Credentials Manager`);
-    if (kind === "TMS") {
-      const fix = changed ? "Add it to the chain first." : "Choose one of the chain's TMSes, or None.";
-      if (!chain) throw httpError(400, changed ? "Choose the theatre's chain before its TMS" : `The theatre needs a chain to keep its TMS (${device.name}). Choose a chain, or set the TMS to None.`);
-      const { rows: [link] } = await client.query(
-        "SELECT 1 FROM chain_tms WHERE chain_id = $1 AND device_id = $2", [theatre.chain_id, wanted]);
-      if (!link) throw httpError(400, `${device.name} isn't linked to ${chain.name}. ${fix}`);
-    }
+    // Only one of the chain's approved systems (Edit Chain › Theatre Systems)
+    const { table, noun } = CHAIN_SYSTEMS[kind];
+    const fix = changed ? "Add it to the chain first." : `Choose one of the chain's ${noun === "TMS" ? "TMSes" : `${noun}s`}, or None.`;
+    if (!chain) throw httpError(400, changed ? `Choose the theatre's chain before its ${noun}` : `The theatre needs a chain to keep its ${noun} (${device.name}). Choose a chain, or set the ${noun} to None.`);
+    const { rows: [link] } = await client.query(
+      `SELECT 1 FROM ${table} WHERE chain_id = $1 AND device_id = $2`, [theatre.chain_id, wanted]);
+    if (!link) throw httpError(400, `${device.name} isn't linked to ${chain.name}. ${fix}`);
     if (changed) {
       await client.query(
         `INSERT INTO theatre_systems (theatre_id, kind, device_id) VALUES ($1, $2, $3)
@@ -380,15 +380,16 @@ theatres.get("/", async (c) => {
 });
 
 /**
- * Choices for the theatre form's TMS and Ticketing System dropdowns: the TMSes linked to `chainId` (none without
- * a chain) and every ticketing system.
+ * Choices for the theatre form's TMS and Ticketing System dropdowns: the ones approved for `chainId` (none
+ * without a chain).
  */
 theatres.get("/systems", async (c) => {
   const chainId = c.req.query("chainId") || null;
   const rows = await query<{ kind: "TMS" | "Ticketing System"; id: string; name: string }>(
     `SELECT d.type AS kind, d.id, ${SYSTEM_NAME} AS name FROM credential_devices d
-     WHERE d.type = 'Ticketing System'
-        OR (d.type = 'TMS' AND EXISTS (SELECT 1 FROM chain_tms x WHERE x.device_id = d.id AND x.chain_id = $1))
+     WHERE (d.type = 'TMS' AND EXISTS (SELECT 1 FROM chain_tms x WHERE x.device_id = d.id AND x.chain_id = $1))
+        OR (d.type = 'Ticketing System'
+            AND EXISTS (SELECT 1 FROM chain_ticketing_systems x WHERE x.device_id = d.id AND x.chain_id = $1))
      ORDER BY lower(d.brand), lower(d.model)`, [chainId]);
   const options: TheatreSystemOptions = {
     tms: rows.filter((r) => r.kind === "TMS").map(({ id, name }) => ({ id, name })),

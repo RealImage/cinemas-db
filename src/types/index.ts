@@ -352,6 +352,8 @@ export type Chain = {
   updatedAt: string;
   /** TMSes (Credentials Manager) this chain's theatres may use. */
   tms?: { id: string; name: string }[];
+  /** POS / ticketing systems (Credentials Manager) this chain's theatres may use. */
+  ticketingSystems?: { id: string; name: string }[];
 };
 
 export type Company = {
