@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type pg from "pg";
 import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
 import { assertNotDeleted } from "../theatreDeletion";
@@ -119,7 +120,7 @@ const COLUMN_KEYS = new Set([
 
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
-async function validateForm(form: DeviceForm) {
+async function validateForm(form: DeviceForm, client: pg.PoolClient) {
   const hardwareSerialNumber = str(form.hardwareSerialNumber);
   const applicationSerialNumber = str(form.applicationSerialNumber);
   if (!hardwareSerialNumber) throw httpError(400, "Hardware Serial Number is required");
@@ -132,7 +133,9 @@ async function validateForm(form: DeviceForm) {
   if (mapped) {
     theatreId = str(form.theatreId);
     if (!theatreId) throw httpError(400, "Theatre selection is required when mapping status is Yes");
-    const [t] = await query<{ status: string }>("SELECT status FROM theatres WHERE id = $1", [theatreId]);
+    const { rows: [t] } = await client.query<{ status: string }>(
+      "SELECT status FROM theatres WHERE id = $1 FOR UPDATE", [theatreId],
+    );
     if (!t) throw notFound("Theatre");
     assertNotDeleted(t);
   } else if (!str(form.noMappingReason)) {
@@ -166,20 +169,24 @@ const uniqueViolation = (err: unknown) =>
     : err;
 
 wiretap.post("/", async (c) => {
-  const f = await validateForm(await c.req.json<DeviceForm>());
+  const form = await c.req.json<DeviceForm>();
   try {
-    const [row] = await query<{ id: string }>(
-      `INSERT INTO wiretap_devices (
-         hardware_serial_number, application_serial_number, host_name, cluster_name, theatre_id,
-         mapping_status, no_mapping_reason, pull_out_status, pull_out_date, pull_out_reason,
-         storage_capacity, bandwidth, connectivity_type, isp_name, details, in_inventory, updated_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, true, $16)
-       RETURNING id`,
-      [f.hardwareSerialNumber, f.applicationSerialNumber, f.hostName, f.clusterName, f.theatreId,
-        f.mapped ? "Mapped" : "Unmapped", f.noMappingReason, f.pulledOut ? "Pulled Out" : "Installed",
-        f.pullOutDate, f.pullOutReason, f.storage, f.bandwidth, f.connectivityType, f.ispName,
-        f.details, CURRENT_USER],
-    );
+    const row = await transaction(async (client) => {
+      const f = await validateForm(form, client);
+      const { rows: [created] } = await client.query<{ id: string }>(
+        `INSERT INTO wiretap_devices (
+           hardware_serial_number, application_serial_number, host_name, cluster_name, theatre_id,
+           mapping_status, no_mapping_reason, pull_out_status, pull_out_date, pull_out_reason,
+           storage_capacity, bandwidth, connectivity_type, isp_name, details, in_inventory, updated_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, true, $16)
+         RETURNING id`,
+        [f.hardwareSerialNumber, f.applicationSerialNumber, f.hostName, f.clusterName, f.theatreId,
+          f.mapped ? "Mapped" : "Unmapped", f.noMappingReason, f.pulledOut ? "Pulled Out" : "Installed",
+          f.pullOutDate, f.pullOutReason, f.storage, f.bandwidth, f.connectivityType, f.ispName,
+          f.details, CURRENT_USER],
+      );
+      return created;
+    });
     return c.json(row, 201);
   } catch (err) {
     throw uniqueViolation(err);
@@ -191,31 +198,37 @@ wiretap.post("/", async (c) => {
  * read-only there, so they are not written here.
  */
 wiretap.put("/:id", async (c) => {
-  const f = await validateForm(await c.req.json<DeviceForm>());
-  // Nor can a device be moved off (or edited on) a deleted theatre
-  const [current] = await query<{ status: string }>(
-    "SELECT t.status FROM wiretap_devices d JOIN theatres t ON t.id = d.theatre_id WHERE d.id = $1", [c.req.param("id")]);
-  if (current) assertNotDeleted(current);
+  const form = await c.req.json<DeviceForm>();
   try {
-    const rows = await query(
-      `UPDATE wiretap_devices SET
-         hardware_serial_number = $2, application_serial_number = $3, host_name = $4, cluster_name = $5,
-         theatre_id = CASE WHEN $6::boolean THEN $7 ELSE NULL END,
-         mapping_status = CASE WHEN $6::boolean THEN 'Mapped' ELSE 'Unmapped' END,
-         no_mapping_reason = $8,
-         pull_out_status = CASE WHEN $9::boolean THEN 'Pulled Out'
-                                WHEN pull_out_status = 'Pulled Out' THEN 'Installed'
-                                ELSE pull_out_status END,
-         pull_out_date = $10, pull_out_reason = $11,
-         storage_capacity = coalesce($12, storage_capacity),
-         details = details || $13::jsonb, updated_by = $14
-       WHERE id = $1 RETURNING id`,
-      [c.req.param("id"), f.hardwareSerialNumber, f.applicationSerialNumber, f.hostName, f.clusterName,
-        f.mapped, f.theatreId, f.noMappingReason, f.pulledOut, f.pullOutDate, f.pullOutReason,
-        f.storage, f.details, CURRENT_USER],
-    );
-    if (rows.length === 0) throw notFound("WireTAP device");
-    return c.json({ id: c.req.param("id") });
+    const id = c.req.param("id");
+    await transaction(async (client) => {
+      const f = await validateForm(form, client);
+      const { rows: [current] } = await client.query<{ status: string }>(
+        `SELECT t.status FROM wiretap_devices d
+         JOIN theatres t ON t.id = d.theatre_id
+         WHERE d.id = $1 FOR UPDATE`, [id],
+      );
+      if (current) assertNotDeleted(current);
+      const { rows } = await client.query(
+        `UPDATE wiretap_devices SET
+           hardware_serial_number = $2, application_serial_number = $3, host_name = $4, cluster_name = $5,
+           theatre_id = CASE WHEN $6::boolean THEN $7 ELSE NULL END,
+           mapping_status = CASE WHEN $6::boolean THEN 'Mapped' ELSE 'Unmapped' END,
+           no_mapping_reason = $8,
+           pull_out_status = CASE WHEN $9::boolean THEN 'Pulled Out'
+                                  WHEN pull_out_status = 'Pulled Out' THEN 'Installed'
+                                  ELSE pull_out_status END,
+           pull_out_date = $10, pull_out_reason = $11,
+           storage_capacity = coalesce($12, storage_capacity),
+           details = details || $13::jsonb, updated_by = $14
+         WHERE id = $1 RETURNING id`,
+        [id, f.hardwareSerialNumber, f.applicationSerialNumber, f.hostName, f.clusterName,
+          f.mapped, f.theatreId, f.noMappingReason, f.pulledOut, f.pullOutDate, f.pullOutReason,
+          f.storage, f.details, CURRENT_USER],
+      );
+      if (rows.length === 0) throw notFound("WireTAP device");
+    });
+    return c.json({ id });
   } catch (err) {
     throw uniqueViolation(err);
   }
