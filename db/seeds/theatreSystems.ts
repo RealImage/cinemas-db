@@ -3,12 +3,12 @@ import type { ExtraSeeder } from "./types";
 
 /**
  * Links the sample theatres' TMS and ticketing system to Credentials Manager entries (by brand, preferring an exact
- * model name), and each chain to the TMSes its theatres use, as migration 012 did for existing data. Runs after
+ * model name), and each chain to the TMSes and ticketing systems its theatres use, as migrations 012 and 022 did. Runs after
  * the credentials seeder.
  */
 export const theatreSystemsSeeder: ExtraSeeder = {
   name: "theatreSystems",
-  tables: ["theatre_systems", "chain_tms"],
+  tables: ["theatre_systems", "chain_tms", "chain_ticketing_systems"],
   async run(client) {
     const rows = theatres.flatMap((t) => [
       [t.id, "TMS", t.theatreManagementSystem],
@@ -25,12 +25,14 @@ export const theatreSystemsSeeder: ExtraSeeder = {
        WHERE EXISTS (SELECT 1 FROM theatres t WHERE t.id = v.theatre_id)`,
       [JSON.stringify(rows.map(([theatre_id, kind, text]) => ({ theatre_id, kind, text })))],
     );
-    await client.query(
-      `INSERT INTO chain_tms (chain_id, device_id, updated_by)
-       SELECT DISTINCT t.chain_id, s.device_id, 'System'
-       FROM theatre_systems s JOIN theatres t ON t.id = s.theatre_id
-       WHERE s.kind = 'TMS' AND t.chain_id IS NOT NULL
-       ON CONFLICT DO NOTHING`,
-    );
+    for (const [table, kind] of [["chain_tms", "TMS"], ["chain_ticketing_systems", "Ticketing System"]]) {
+      await client.query(
+        `INSERT INTO ${table} (chain_id, device_id, updated_by)
+         SELECT DISTINCT t.chain_id, s.device_id, 'System'
+         FROM theatre_systems s JOIN theatres t ON t.id = s.theatre_id
+         WHERE s.kind = $1 AND t.chain_id IS NOT NULL
+         ON CONFLICT DO NOTHING`, [kind],
+      );
+    }
   },
 };

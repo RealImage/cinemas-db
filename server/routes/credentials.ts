@@ -201,7 +201,8 @@ async function saveDevice(id: string | null, d: CredentialDeviceInput) {
       // A device linked to chains or theatres as their TMS / ticketing system must keep that type
       const { rows: [before] } = await db.query<{ type: string; chains: number; theatres: number }>(
         `SELECT type,
-                (SELECT count(*)::int FROM chain_tms WHERE device_id = $1) AS chains,
+                (SELECT count(*)::int FROM chain_tms WHERE device_id = $1)
+                  + (SELECT count(*)::int FROM chain_ticketing_systems WHERE device_id = $1) AS chains,
                 (SELECT count(*)::int FROM theatre_systems WHERE device_id = $1) AS theatres
          FROM credential_devices WHERE id = $1 FOR UPDATE`, [id]);
       if (before && before.type !== d.type && (before.chains > 0 || before.theatres > 0)) {

@@ -1,8 +1,8 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type pg from "pg";
 import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
-import { SYSTEM_NAME } from "../theatreSystems";
+import { CHAIN_SYSTEMS, SYSTEM_NAME, type SystemKind } from "../theatreSystems";
 import { CREDENTIAL_COLUMNS, toCredential, type CredentialRow } from "./credentials";
 import type { Chain } from "../../src/types";
 import { GLOBAL_REF, type CredentialDeviceWithStatus } from "../../src/data/credentialsManagerData";
@@ -19,7 +19,10 @@ const CHAIN_SELECT = `
          (SELECT count(*) FROM theatres t WHERE t.chain_id = c.id AND t.status <> 'Deleted') AS "theatreCount",
          c.status, c.created_at AS "createdAt", c.updated_at AS "updatedAt",
          coalesce((SELECT json_agg(json_build_object('id', d.id, 'name', ${SYSTEM_NAME}) ORDER BY lower(d.brand), lower(d.model))
-                   FROM chain_tms x JOIN credential_devices d ON d.id = x.device_id WHERE x.chain_id = c.id), '[]') AS tms
+                   FROM chain_tms x JOIN credential_devices d ON d.id = x.device_id WHERE x.chain_id = c.id), '[]') AS tms,
+         coalesce((SELECT json_agg(json_build_object('id', d.id, 'name', ${SYSTEM_NAME}) ORDER BY lower(d.brand), lower(d.model))
+                   FROM chain_ticketing_systems x JOIN credential_devices d ON d.id = x.device_id WHERE x.chain_id = c.id),
+                  '[]') AS "ticketingSystems"
   FROM chains c LEFT JOIN companies co ON co.id = c.company_id`;
 
 /** CHAIN_SELECT plus the Basic and Contact Information the Edit Chain page edits. */
@@ -203,46 +206,51 @@ chains.put("/:id", async (c) => {
 // ---------------------------------------------------------------------------
 
 /**
- * Replace the TMSes a chain's theatres may use (Credentials Manager entries of type TMS). Body: { deviceIds }.
- * A TMS still used by one of the chain's theatres can't be removed.
+ * Replace the TMSes (or ticketing systems) a chain's theatres may use: Credentials Manager entries of that type.
+ * Body: { deviceIds }. One still used by one of the chain's theatres can't be removed.
  */
-chains.put("/:id/tms", async (c) => {
+const putChainSystems = (kind: SystemKind) => async (c: Context) => {
   const id = c.req.param("id");
+  const { table, label, noun } = CHAIN_SYSTEMS[kind];
+  const listKey = kind === "TMS" ? "tms" : "ticketingSystems";
   const body = await c.req.json<{ deviceIds?: unknown }>();
   if (!Array.isArray(body.deviceIds) || !body.deviceIds.every((d) => typeof d === "string")) {
-    throw httpError(400, "deviceIds must be a list of TMS ids");
+    throw httpError(400, `deviceIds must be a list of ${noun} ids`);
   }
   const deviceIds = [...new Set(body.deviceIds as string[])];
   const chain = await transaction(async (client) => {
     await lockChain(client, id);
     const { rows: found } = await client.query<{ id: string }>(
-      "SELECT id FROM credential_devices WHERE id = ANY($1) AND type = 'TMS' FOR SHARE", [deviceIds]);
+      "SELECT id FROM credential_devices WHERE id = ANY($1) AND type = $2 FOR SHARE", [deviceIds, kind]);
     const unknown = deviceIds.filter((d) => !found.some((f) => f.id === d));
-    if (unknown.length) throw httpError(400, `Not a TMS in the Credentials Manager: ${unknown.join(", ")}`);
+    if (unknown.length) throw httpError(400, `Not a ${noun} in the Credentials Manager: ${unknown.join(", ")}`);
     const { rows: inUse } = await client.query<{ name: string; theatres: number }>(
       `SELECT ${SYSTEM_NAME} AS name, count(*)::int AS theatres
        FROM theatre_systems s JOIN theatres t ON t.id = s.theatre_id JOIN credential_devices d ON d.id = s.device_id
-       WHERE s.kind = 'TMS' AND t.chain_id = $1 AND NOT (s.device_id = ANY($2)) GROUP BY d.id`, [id, deviceIds]);
+       WHERE s.kind = $3 AND t.chain_id = $1 AND NOT (s.device_id = ANY($2)) GROUP BY d.id`, [id, deviceIds, kind]);
     if (inUse.length) {
       throw httpError(409, `Still in use by this chain's theatres: ${inUse.map((u) => `${u.name} (${u.theatres})`).join(", ")}. Change those theatres first.`);
     }
-    const tmsNames = async () => (await client.query<{ tms: { name: string }[] }>(`${CHAIN_SELECT} WHERE c.id = $1`, [id]))
-      .rows[0].tms.map((t) => t.name).join(", ") || null;
-    const before = await tmsNames();
-    await client.query("DELETE FROM chain_tms WHERE chain_id = $1 AND NOT (device_id = ANY($2))", [id, deviceIds]);
+    const names = async () => (await client.query<Chain>(`${CHAIN_SELECT} WHERE c.id = $1`, [id]))
+      .rows[0][listKey]?.map((t) => t.name).join(", ") || null;
+    const before = await names();
+    await client.query(`DELETE FROM ${table} WHERE chain_id = $1 AND NOT (device_id = ANY($2))`, [id, deviceIds]);
     await client.query(
-      `INSERT INTO chain_tms (chain_id, device_id, updated_by) SELECT $1, unnest($2::text[]), $3 ON CONFLICT DO NOTHING`,
+      `INSERT INTO ${table} (chain_id, device_id, updated_by) SELECT $1, unnest($2::text[]), $3 ON CONFLICT DO NOTHING`,
       [id, deviceIds, CURRENT_USER]);
     await client.query("UPDATE chains SET updated_by = $2 WHERE id = $1", [id, CURRENT_USER]);
-    const after = await tmsNames();
+    const after = await names();
     if (before !== after) {
-      await writeLogs(client, id, [{ section: "Theatre Systems", field: "Theatre Management Systems", oldValue: before, newValue: after }]);
+      await writeLogs(client, id, [{ section: "Theatre Systems", field: label, oldValue: before, newValue: after }]);
     }
     const { rows: [updated] } = await client.query<Chain>(`${CHAIN_SELECT} WHERE c.id = $1`, [id]);
     return updated;
   });
   return c.json(chain);
-});
+};
+
+chains.put("/:id/tms", putChainSystems("TMS"));
+chains.put("/:id/ticketing-systems", putChainSystems("Ticketing System"));
 
 /** The chain's theatres that aren't Deleted, as a CTE. */
 const CHAIN_THEATRES = "chain_theatres AS (SELECT * FROM theatres WHERE chain_id = $1 AND status <> 'Deleted')";
@@ -279,12 +287,14 @@ chains.get("/:id/systems", async (c) => {
       [chain.id]),
   ]);
   const allowed = new Set((chain.tms ?? []).map((t) => t.id));
+  const allowedTicketing = new Set((chain.ticketingSystems ?? []).map((t) => t.id));
   const result: ChainSystems = {
     tms: chain.tms ?? [],
+    ticketingSystems: chain.ticketingSystems ?? [],
     theatreCount: chain.theatreCount,
     tmsInUse: tmsInUse.map((t) => ({ ...t, allowed: allowed.has(t.id) })),
     theatresWithoutTms,
-    ticketingInUse,
+    ticketingInUse: ticketingInUse.map((t) => ({ ...t, allowed: allowedTicketing.has(t.id) })),
     theatresWithoutTicketing,
     deliveryModes,
   };

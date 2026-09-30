@@ -53,9 +53,9 @@ function SystemSelect({
 }
 
 /**
- * The theatre's Theatre Management System and Ticketing System, picked from the Credentials Manager. Only TMSes
- * linked to the theatre's chain are offered, so a wrong TMS can't be mapped; changing the chain clears a TMS the
- * new chain doesn't have.
+ * The theatre's Theatre Management System and Ticketing System, picked from the Credentials Manager. Only the ones
+ * approved for the theatre's chain are offered, so a wrong system can't be mapped; changing the chain clears one
+ * the new chain doesn't have.
  */
 export function TheatreSystemsFields({
   chainId, chainName, tmsId, tmsName, ticketingSystemId, ticketingSystemName, onChange,
@@ -70,20 +70,24 @@ export function TheatreSystemsFields({
 }) {
   const options = useTheatreSystemOptions(chainId || undefined);
   const tms = options.data?.tms;
-  // The chain whose TMS list the selection was last checked against; the saved TMS starts out as-is
+  const ticketing = options.data?.ticketing;
+  // The chain whose lists the selections were last checked against; the saved systems start out as-is
   const checkedChain = useRef(chainId);
 
   useEffect(() => {
-    if (!tms || chainId === checkedChain.current) return;
+    if (!tms || !ticketing || chainId === checkedChain.current) return;
     checkedChain.current = chainId;
     if (tmsId && !tms.some((o) => o.id === tmsId)) onChange("tmsId", null);
-  }, [tms, tmsId, chainId, onChange]);
+    if (ticketingSystemId && !ticketing.some((o) => o.id === ticketingSystemId)) onChange("ticketingSystemId", null);
+  }, [tms, ticketing, tmsId, ticketingSystemId, chainId, onChange]);
 
-  const tmsNote = !chainId
+  const note = (list: unknown[] | undefined, noun: string) => !chainId
     ? "Choose the chain first."
-    : tms && tms.length === 0
-      ? `${chainName || "This chain"} has no TMS linked yet.`
+    : list && list.length === 0
+      ? `${chainName || "This chain"} has no ${noun} approved yet.`
       : undefined;
+  const info = (plural: string, noun: string) =>
+    `Only ${plural} approved for this theatre's chain are listed, so a wrong ${noun} can't be mapped. To use another, first add it to the chain: Chains › Edit › Theatre Systems.`;
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -96,17 +100,19 @@ export function TheatreSystemsFields({
         onChange={(v) => onChange("tmsId", v)}
         // Without a chain there's nothing to pick, but a saved TMS can still be cleared
         disabled={!chainId && !tmsId}
-        note={tmsNote}
-        info="Only TMSes linked to this theatre's chain are listed, so a wrong TMS can't be mapped. To use another TMS, first add it to the chain: Chains › Theatre Management Systems."
+        note={note(tms, "TMS")}
+        info={info("TMSes", "TMS")}
       />
       <SystemSelect
         id="ticketingSystemId"
         label="Ticketing System"
         value={ticketingSystemId}
         currentName={ticketingSystemName}
-        options={options.data?.ticketing}
+        options={ticketing}
         onChange={(v) => onChange("ticketingSystemId", v)}
-        info="From Devices Master › Credentials Manager (type Ticketing System). Add a new system there to list it here."
+        disabled={!chainId && !ticketingSystemId}
+        note={note(ticketing, "ticketing system")}
+        info={info("ticketing systems", "ticketing system")}
       />
     </div>
   );

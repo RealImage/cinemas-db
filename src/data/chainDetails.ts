@@ -32,11 +32,14 @@ export type ChainSystemCount = { id: string; name: string; theatres: number };
 export interface ChainSystems {
   /** TMSes the chain's theatres may use (chain_tms). */
   tms: { id: string; name: string }[];
+  /** POS / ticketing systems the chain's theatres may use (chain_ticketing_systems). */
+  ticketingSystems: { id: string; name: string }[];
   theatreCount: number;
   /** TMSes the chain's theatres use; `allowed` is false for one no longer linked to the chain. */
   tmsInUse: (ChainSystemCount & { allowed: boolean })[];
   theatresWithoutTms: number;
-  ticketingInUse: ChainSystemCount[];
+  /** Ticketing systems the chain's theatres use; `allowed` as for tmsInUse. */
+  ticketingInUse: (ChainSystemCount & { allowed: boolean })[];
   theatresWithoutTicketing: number;
   deliveryModes: { mode: "Physical" | "Network" | "Modem"; method: string; theatres: number }[];
 }

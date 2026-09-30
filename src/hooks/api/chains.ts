@@ -55,11 +55,11 @@ export const useUpdateChain = () => {
   });
 };
 
-/** Replace the TMSes a chain's theatres may use. */
-export const useSetChainTms = () => {
+/** Replace the TMSes (`kind` "tms") or POS / ticketing systems ("ticketing-systems") a chain's theatres may use. */
+export const useSetChainSystems = (kind: "tms" | "ticketing-systems") => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, deviceIds }: { id: string; deviceIds: string[] }) => api.put<Chain>(`/chains/${id}/tms`, { deviceIds }),
+    mutationFn: ({ id, deviceIds }: { id: string; deviceIds: string[] }) => api.put<Chain>(`/chains/${id}/${kind}`, { deviceIds }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: chainKeys.all });
       qc.invalidateQueries({ queryKey: ["theatres", "systems"] });
