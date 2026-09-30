@@ -80,8 +80,41 @@ export type TemporaryClosure = {
 
 /** Which reason list a screen status needs: deactivating and deleting each have their own. */
 export const SCREEN_STATUS_REASON_TYPES = { Inactive: "DEACTIVATE_SCREEN", Deleted: "DELETE_SCREEN" } as const;
-export type StatusReasonType = (typeof SCREEN_STATUS_REASON_TYPES)[keyof typeof SCREEN_STATUS_REASON_TYPES];
+/** Reason type for a theatre deletion request. */
+export const THEATRE_DELETION_REASON_TYPE = "DELETE_THEATRE";
+export type StatusReasonType =
+  | (typeof SCREEN_STATUS_REASON_TYPES)[keyof typeof SCREEN_STATUS_REASON_TYPES]
+  | typeof THEATRE_DELETION_REASON_TYPE;
 export type StatusReason = { id: string; reasonType: StatusReasonType; reason: string };
+
+/** A soft-deleted theatre can be deleted permanently this long after the deletion was approved. */
+export const THEATRE_PERMANENT_DELETE_HOURS = 48;
+
+export type TheatreDeletionStatus = "Pending" | "Approved" | "Rejected" | "Restored";
+
+/** A row of the Theatre Deletions queue (Approvals & Conflicts). */
+export type TheatreDeletionRequest = {
+  id: string;
+  theatreId: string;
+  theatreName: string;
+  chainName: string;
+  city: string;
+  screenCount: number;
+  reasonId: string;
+  reason: string;
+  comments: string;
+  status: TheatreDeletionStatus;
+  requestedBy: string;
+  requestedAt: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewComments: string | null;
+  /** Set once approved (the theatre is soft-deleted). */
+  deletedAt: string | null;
+  deletedBy: string | null;
+  /** deletedAt + THEATRE_PERMANENT_DELETE_HOURS. */
+  permanentDeleteFrom: string | null;
+};
 
 export type ScreenOption = { id: string; name: string };
 /** Choices for a screen's picture fields: lookup masters and industry companies by role. */
@@ -232,7 +265,14 @@ export type Theatre = {
   timezone?: string;
   wireTap?: string;
   screenCount: number;
-  status: "Active" | "Inactive" | "Closed";
+  /** Deleted: soft-deleted by an approved deletion request (read-only; restore it to edit). */
+  status: "Active" | "Inactive" | "Closed" | "Deleted";
+  /** Read-only: when the theatre was soft-deleted, and when it may be deleted permanently. */
+  deletedAt?: string | null;
+  deletedBy?: string | null;
+  permanentDeleteFrom?: string | null;
+  /** Read-only: the deletion request waiting for approval, if any. */
+  pendingDeletion?: { id: string; reason: string; requestedBy: string; requestedAt: string } | null;
   adIntegrators?: string[];
   screens?: Screen[];
   notes?: string;

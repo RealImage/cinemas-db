@@ -45,6 +45,7 @@ const CompanyClaims = () => {
         {(claims) => (
           <DataTable
             data={claims}
+            exportName="Company Claims"
             columns={columns}
             searchable
             searchPlaceholder="Search claims..."

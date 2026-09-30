@@ -212,6 +212,7 @@ const ImageManagement = () => {
         {() => (
       <DataTable
         data={images}
+        exportName="Images"
         columns={columns}
         searchable
         searchPlaceholder="Search by Agent / OS Name..."

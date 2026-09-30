@@ -10,3 +10,6 @@ export const projectionExperiences = [
 ] as const;
 
 export const audioExperiences = ["5.1", "7.1", "IAB"] as const;
+
+// Spellings match what screens store in sound.soundMixes.
+export const soundMixes = ["5.1 Surround", "7.1 Surround", "Dolby Atmos", "Auro 3D", "DTS:X", "IMAX Enhanced"] as const;

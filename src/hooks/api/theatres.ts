@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Company, DashboardStats, Theatre, TheatreSystemOptions } from "@/types";
+import type { Company, DashboardStats, Theatre, TheatreDeletionRequest, TheatreSystemOptions } from "@/types";
 import type { WireTAPDevice } from "@/types/wireTAP";
 import type { TheatreLiveWire, WtfData } from "@/data/wtfData";
 import type { TheatreFacets, TheatrePage, TheatreSearchMode, TheatreTag } from "@/data/theatreSearch";
@@ -23,7 +23,7 @@ export type TheatreLogEntry = {
   id: string;
   date: string;
   section: "General Information" | "Location & Systems" | "Connectivity Details" | "Content & Key Delivery" | "Screen Management" | "IP & Suites";
-  action: "Created" | "Updated" | "Listed" | "Unlisted" | "Deleted";
+  action: "Created" | "Updated" | "Listed" | "Unlisted" | "Deleted" | "Deletion Requested" | "Deletion Rejected" | "Restored";
   updatedBy: { name: string; email?: string; phone?: string };
   oldValue?: string | null;
   newValue?: string | null;
@@ -48,19 +48,30 @@ export interface TheatrePageParams {
   tags: TheatreTag[];
 }
 
-/** One page of the Theatre List, searched, filtered and sorted on the server. */
-export const useTheatrePage = (p: TheatrePageParams) => {
-  const qs = new URLSearchParams({ page: String(p.page), pageSize: String(p.pageSize), mode: p.mode });
+/** The Theatre List's search, filter, tag and sort parameters (everything but paging). */
+const theatreListParams = (p: Omit<TheatrePageParams, "page" | "pageSize">) => {
+  const qs = new URLSearchParams({ mode: p.mode });
   if (p.q.trim()) qs.set("q", p.q.trim());
   if (p.sort && p.dir) { qs.set("sort", p.sort); qs.set("dir", p.dir); }
   for (const [name, value] of Object.entries(p.filters)) qs.append(name, value);
   for (const tag of p.tags) qs.append("tag", `${tag.kind}:${tag.value}`);
+  return qs;
+};
+
+/** One page of the Theatre List, searched, filtered and sorted on the server. */
+export const useTheatrePage = (p: TheatrePageParams) => {
+  const qs = new URLSearchParams({ page: String(p.page), pageSize: String(p.pageSize) });
+  for (const [name, value] of theatreListParams(p)) qs.append(name, value);
   return useQuery({
     queryKey: theatreKeys.page(qs.toString()),
     queryFn: () => api.get<TheatrePage>(`/theatres/page?${qs}`),
     placeholderData: keepPreviousData,
   });
 };
+
+/** Every theatre the Theatre List matches (not just one page), in list order, for an export. */
+export const fetchTheatreExport = (p: Omit<TheatrePageParams, "page" | "pageSize">) =>
+  api.get<TheatrePage>(`/theatres/export?${theatreListParams(p)}`);
 
 export const useTheatreFacets = () =>
   useQuery({ queryKey: theatreKeys.facets, queryFn: () => api.get<TheatreFacets>("/theatres/facets") });
@@ -135,6 +146,26 @@ export const useSetTheatreStatus = () => {
   });
 };
 
+/** Ask for a theatre to be deleted; an approver approves it in Approvals & Conflicts → Theatre Deletions. */
+export const useRequestTheatreDeletion = () => {
+  const invalidate = useInvalidateTheatres();
+  return useMutation({
+    mutationFn: ({ id, reasonId, comments }: { id: string; reasonId: string; comments: string }) =>
+      api.post<TheatreDeletionRequest>(`/theatres/${id}/deletion-request`, { reasonId, comments }),
+    onSuccess: invalidate,
+  });
+};
+
+/** Undo a soft delete (before the theatre is deleted permanently). */
+export const useRestoreTheatre = () => {
+  const invalidate = useInvalidateTheatres();
+  return useMutation({
+    mutationFn: (id: string) => api.post<Theatre>(`/theatres/${id}/restore`),
+    onSuccess: invalidate,
+  });
+};
+
+/** Delete a soft-deleted theatre permanently (allowed THEATRE_PERMANENT_DELETE_HOURS after the approval). */
 export const useDeleteTheatre = () => {
   const invalidate = useInvalidateTheatres();
   return useMutation({

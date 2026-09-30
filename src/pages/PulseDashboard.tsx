@@ -43,6 +43,7 @@ const theatreColumns: Column<MonitoredTheatre>[] = [
     accessor: "environmentCoverage",
     filterable: true,
     filterOptions: coverageOptions,
+    exportValue: (t) => t.environment,
     cell: (t) => (
       <Badge variant="outline" className="border-primary/50 text-primary" title={t.environmentCoverage}>
         {t.environment}
@@ -54,6 +55,7 @@ const theatreColumns: Column<MonitoredTheatre>[] = [
     accessor: "projectionCoverage",
     filterable: true,
     filterOptions: coverageOptions,
+    exportValue: (t) => t.projection,
     cell: (t) => (
       <Badge variant="outline" className="border-accent-foreground/30 text-accent-foreground" title={t.projectionCoverage}>
         {t.projection}
@@ -129,7 +131,7 @@ function DashboardContent({ data }: { data: PulseDashboardData }) {
 
       {/* Theatres Table */}
       <DashboardCard title="Monitored Theatres">
-        <DataTable data={monitoredTheatres} columns={theatreColumns} searchPlaceholder="Search theatres..." />
+        <DataTable data={monitoredTheatres} columns={theatreColumns} searchPlaceholder="Search theatres..." exportName="Pulse Theatres" />
       </DashboardCard>
 
       {/* Environment Monitoring Histogram */}

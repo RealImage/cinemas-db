@@ -3,6 +3,9 @@ import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
 import type { CompanyClaim } from "../../src/data/companyClaimsData";
 import type { OperationsRegion, PartnerRequest } from "../../src/data/partnersData";
+import type { TheatreDeletionRequest } from "../../src/types";
+import { DELETION_SELECT, commentsField, lockTheatre } from "../theatreDeletion";
+import { writeLogs } from "./theatres";
 
 export const approvals = new Hono();
 
@@ -21,6 +24,7 @@ approvals.get("/summary", async (c) => {
     SELECT
       (SELECT count(*) FROM company_claims WHERE status = 'Pending') AS claims,
       (SELECT count(*) FROM partner_requests WHERE status = 'Pending') AS partners,
+      (SELECT count(*) FROM theatre_deletion_requests WHERE status = 'Pending') AS theatre_deletions,
       (SELECT count(*) FROM flm_feeds WHERE status = 'Manual' AND ignored_at IS NULL
          AND is_new_theatre AND mapped_theatre_id IS NULL) AS theatre_additions,
       (SELECT count(*) FROM flm_feeds WHERE status = 'Manual' AND ignored_at IS NULL
@@ -47,14 +51,14 @@ approvals.get("/summary", async (c) => {
       (SELECT count(*) FROM flm_feeds WHERE status = 'Manual' AND ignored_at IS NULL) AS flm_pending,
       (SELECT count(*) FROM wiretap_devices) AS wiretaps`);
   const summary: ApprovalsSummary = {
-    // Chain updates, integrators and theatre deletions have no request source in the DB yet.
+    // Chain updates and integrators have no request source in the DB yet.
     approvals: [
       { label: "Chain Updates", count: 0 },
       { label: "Company Claims", count: r.claims },
       { label: "Integrators", count: 0 },
       { label: "Partners", count: r.partners },
       { label: "Theatre Additions", count: r.theatre_additions },
-      { label: "Theatre Deletions", count: 0 },
+      { label: "Theatre Deletions", count: r.theatre_deletions },
       { label: "Theatre Updates", count: r.theatre_updates },
     ],
     conflicts: [
@@ -229,3 +233,54 @@ approvals.post("/partners/:id/reopen", async (c) => {
   if (rows.length === 0) throw notFound("Partner request");
   return c.body(null, 204);
 });
+
+// ---------------------------------------------------------------------------
+// Theatre deletions: approve (soft delete) or reject a request. Restore and permanent delete are
+// POST /api/theatres/:id/restore and DELETE /api/theatres/:id.
+// ---------------------------------------------------------------------------
+
+/** ?state=pending (waiting for approval, oldest first) or deleted (approved: soft-deleted theatres, newest first). */
+approvals.get("/theatre-deletions", async (c) => {
+  const state = c.req.query("state") ?? "pending";
+  if (state !== "pending" && state !== "deleted") throw httpError(400, "state must be pending or deleted");
+  return c.json(await query<TheatreDeletionRequest>(state === "pending"
+    ? `${DELETION_SELECT} WHERE r.status = 'Pending' ORDER BY r.requested_at, r.id`
+    : `${DELETION_SELECT} WHERE r.status = 'Approved' ORDER BY t.deleted_at DESC, r.id`));
+});
+
+const reviewDeletion = (decision: "approve" | "reject") => async (c: Context) => {
+  const id = c.req.param("id");
+  const body = await c.req.json<{ comments?: unknown }>().catch(() => ({} as { comments?: unknown }));
+  const comments = commentsField(body.comments);
+  if (decision === "reject" && !comments) throw httpError(400, "Say why the deletion is rejected");
+  const request = await transaction(async (client) => {
+    const { rows: [ref] } = await client.query<{ theatre_id: string }>(
+      "SELECT theatre_id FROM theatre_deletion_requests WHERE id = $1", [id]);
+    if (!ref) throw notFound("Deletion request");
+    // Theatre first, then the request (the order every deletion step locks in)
+    const theatre = await lockTheatre(client, ref.theatre_id);
+    const { rows: [row] } = await client.query<{ status: string; reason: string }>(
+      `SELECT r.status, sr.reason FROM theatre_deletion_requests r JOIN status_reasons sr ON sr.id = r.reason_id
+       WHERE r.id = $1 FOR UPDATE OF r`, [id]);
+    if (row.status !== "Pending") throw httpError(409, `This request was already ${row.status.toLowerCase()}`);
+    await client.query(
+      `UPDATE theatre_deletion_requests SET status = $2, reviewed_by = $3, reviewed_at = now(), review_comments = $4
+       WHERE id = $1`, [id, decision === "approve" ? "Approved" : "Rejected", CURRENT_USER, comments || null]);
+    if (decision === "approve") {
+      await client.query(
+        `UPDATE theatres SET status_before_delete = status, status = 'Deleted', deleted_at = now(), deleted_by = $2,
+           updated_by = $2 WHERE id = $1`, [theatre.id, CURRENT_USER]);
+      await writeLogs(client, theatre.id, [{
+        section: "General Information", action: "Deleted", oldValue: theatre.status,
+        newValue: `Deleted (${row.reason})${comments ? `: ${comments}` : ""}`,
+      }]);
+    } else {
+      await writeLogs(client, theatre.id, [{ section: "General Information", action: "Deletion Rejected", newValue: comments }]);
+    }
+    return (await client.query<TheatreDeletionRequest>(`${DELETION_SELECT} WHERE r.id = $1`, [id])).rows[0];
+  });
+  return c.json(request);
+};
+
+approvals.post("/theatre-deletions/:id/approve", reviewDeletion("approve"));
+approvals.post("/theatre-deletions/:id/reject", reviewDeletion("reject"));
