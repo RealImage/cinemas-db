@@ -842,7 +842,13 @@ export const TheatreDialog = ({
                         handleSelectChange("chainId", value ?? "");
                         handleSelectChange("chainName", chain?.name ?? "");
                       }}
-                      options={(chainsQuery.data ?? []).map((chain) => ({ value: chain.id, label: chain.name }))}
+                      options={[
+                        ...(chainsQuery.data ?? []).map((chain) => ({ value: chain.id, label: chain.name })),
+                        // A theatre already linked to a Deleted chain keeps showing it; Deleted chains aren't offered otherwise
+                        ...(formData.chainId && chainsQuery.data && !chainsQuery.data.some((chain) => chain.id === formData.chainId)
+                          ? [{ value: formData.chainId, label: `${formData.chainName || formData.chainId} (deleted)` }]
+                          : []),
+                      ]}
                       placeholder="Select chain"
                       searchPlaceholder="Search chains…"
                       loading={chainsQuery.isPending}
