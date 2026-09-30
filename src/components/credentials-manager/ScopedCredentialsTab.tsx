@@ -26,6 +26,7 @@ import { CredentialCell } from "./CredentialValues";
 import { ViewScopedCredentialDialog } from "./ViewScopedCredentialDialog";
 import { EditScopedCredentialDialog, CredentialDraft } from "./EditScopedCredentialDialog";
 import { common } from "@/i18n/common";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 interface Props {
   device: CredentialDevice;
@@ -96,7 +97,9 @@ export const ScopedCredentialsTab = ({ device, scope, credentials }: Props) => {
       filterOptions: optionsFor("ref"),
       cell: (row) => (
         <div>
-          <p className="font-medium">{row.ref}</p>
+          <p className="font-medium">
+            {scope === "theatre" ? <TheatreNameWithInfo name={row.ref} theatreRef={row.ref} nameClassName="" /> : row.ref}
+          </p>
           {row.location && <p className="text-xs text-muted-foreground">{row.location}</p>}
         </div>
       ),

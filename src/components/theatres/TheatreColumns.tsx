@@ -4,13 +4,20 @@ import { Film, Calendar, User } from "lucide-react";
 import { Column } from "@/components/ui/data-table"; // Import the Column type from data-table
 import { formatDate } from "@/lib/dateUtils";
 import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
-import { TagButton } from "@/components/theatres/TheatreTags";
+import { TagButton, TheatreLocation } from "@/components/theatres/TheatreTags";
 import { formatTheatreAddress } from "@/data/theatreSummary";
 import { THEATRE_LISTINGS } from "@/types";
 import { LISTING_NOT_SET, type TheatreFacets, type TheatrePage, type TheatreTag } from "@/data/theatreSearch";
 
 /** A Theatre List row: a theatre, plus what matched when the list is searched. */
 export type TheatreListRow = TheatrePage["rows"][number];
+
+/** The location is shown under the name in the list, but stays its own column in CSV / Excel exports. */
+export const theatreLocationExportColumn: Column<TheatreListRow> = {
+  header: "Location",
+  accessor: "address",
+  exportValue: (row) => formatTheatreAddress(row),
+};
 
 /** Theatre List columns. Chain, company, location and ad-integrator values are tags: clicking one filters by it. */
 export const useTheatreColumns = ({ onTag }: { onTag: (tag: TheatreTag) => void }): Column<TheatreListRow>[] => {
@@ -19,8 +26,10 @@ export const useTheatreColumns = ({ onTag }: { onTag: (tag: TheatreTag) => void 
       header: "Theatre Name",
       accessor: "name",
       cell: (row) => (
-        <div>
+        // Wide enough for most names on one line; the location sits under the name
+        <div className="min-w-[260px] space-y-1">
           <TheatreNameWithInfo name={row.name} theatreRef={row.id} nameClassName="" />
+          <TheatreLocation row={row} onTag={onTag} />
           {row.match && row.match.field !== "Name" && (
             <div className="max-w-[260px] truncate text-xs text-muted-foreground" title={`${row.match.field}: ${row.match.value}`}>
               {row.match.field}: <span className="font-mono">{row.match.value}</span>
@@ -42,24 +51,6 @@ export const useTheatreColumns = ({ onTag }: { onTag: (tag: TheatreTag) => void 
       header: "Company",
       accessor: "companyName",
       cell: (row) => row.companyName ? <TagButton tag={{ kind: "owner", value: row.companyName }} onTag={onTag} /> : null,
-    },
-    {
-      header: "Location",
-      accessor: "address",
-      exportValue: (row) => formatTheatreAddress(row),
-      cell: (row) => {
-        const places: TheatreTag[] = [
-          { kind: "city", value: row.city },
-          { kind: "province", value: row.state },
-          { kind: "country", value: row.country },
-        ].filter((t): t is TheatreTag => !!t.value);
-        if (!places.length) return <span className="text-xs text-muted-foreground">{row.address || "Not set"}</span>;
-        return (
-          <div className="flex max-w-[240px] flex-wrap gap-1" title={row.address || undefined}>
-            {places.map((tag) => <TagButton key={tag.kind} tag={tag} onTag={onTag} />)}
-          </div>
-        );
-      },
     },
     {
       header: "Status",

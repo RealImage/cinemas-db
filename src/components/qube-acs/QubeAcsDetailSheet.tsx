@@ -8,6 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { QubeAcsTheatre } from "@/data/qubeAcsData";
 import { cn } from "@/lib/utils";
+import { TheatreNameWithInfo } from "@/components/theatres/TheatreInfo";
 
 interface Props {
   theatre: QubeAcsTheatre | null;
@@ -40,7 +41,7 @@ export const QubeAcsDetailSheet = ({ theatre, open, onOpenChange, onEdit }: Prop
       <SheetContent side="right" className="w-full sm:max-w-xl p-0 flex flex-col">
         <SheetHeader className="px-5 py-4 border-b">
           <SheetTitle className="flex items-center justify-between gap-2 pr-8">
-            <span className="truncate">{theatre.theatreName}</span>
+            <TheatreNameWithInfo name={theatre.theatreName} theatreRef={theatre.id} className="min-w-0" nameClassName="truncate" />
             <span className="text-xs font-normal text-muted-foreground">{theatre.theatreId}</span>
           </SheetTitle>
         </SheetHeader>
@@ -50,7 +51,7 @@ export const QubeAcsDetailSheet = ({ theatre, open, onOpenChange, onEdit }: Prop
             <section className="space-y-3">
               <h3 className="text-sm font-semibold">Theatre Details</h3>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Theatre Name & ID" value={`${theatre.theatreName} (${theatre.theatreId})`} />
+                <Field label="Theatre Name & ID" value={<><TheatreNameWithInfo name={theatre.theatreName} theatreRef={theatre.id} nameClassName="" /> ({theatre.theatreId})</>} />
                 <Field label="Theatre Location" value={`${theatre.city}, ${theatre.state}, ${theatre.country}`} />
                 <Field label="Latitude" value={theatre.latitude.toFixed(6)} />
                 <Field label="Longitude" value={theatre.longitude.toFixed(6)} />

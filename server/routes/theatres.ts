@@ -690,15 +690,21 @@ theatres.get("/facets", async (c) => {
 // Routes: one theatre
 // ---------------------------------------------------------------------------
 
-/** Identity for the theatre info hover card; `ref` is a theatre's id, code (e.g. T30000) or UUID. */
+/**
+ * Identity for the theatre info hover card; `ref` is a theatre's id, code (e.g. T30000), UUID or, since agent
+ * configs, credentials and partner regions store names, its exact name (case-insensitive; names are stored trimmed,
+ * so this uses theatres_name_idx on lower(name)). Id/code/uuid matches
+ * win over name matches, and live theatres over Deleted ones.
+ */
 theatres.get("/:ref/summary", async (c) => {
   const [row] = await query<{
     id: string; name: string; display_name: string | null; alternate_names: string[]; uuid: string | null;
     address: string | null; city: string | null; state: string | null; postal_code: string | null; country: string | null;
   }>(
     `SELECT id, name, display_name, alternate_names, uuid, address, city, state, postal_code, country
-     FROM theatres WHERE id = $1 OR code = $1 OR uuid = $1
-     ORDER BY (id = $1) DESC LIMIT 1`,
+     FROM theatres WHERE id = $1 OR code = $1 OR uuid = $1 OR lower(name) = lower(btrim($1))
+     ORDER BY (id = $1) DESC, coalesce(code = $1, false) DESC, coalesce(uuid = $1, false) DESC, (status = 'Deleted') ASC, id
+     LIMIT 1`,
     [c.req.param("ref")],
   );
   if (!row) throw notFound("Theatre");
