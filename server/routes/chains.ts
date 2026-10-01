@@ -213,7 +213,7 @@ const putChainSystems = (kind: SystemKind) => async (c: Context) => {
   const id = c.req.param("id");
   const { table, label, noun } = CHAIN_SYSTEMS[kind];
   const listKey = kind === "TMS" ? "tms" : "ticketingSystems";
-  const body = await c.req.json<{ deviceIds?: unknown }>();
+  const body: { deviceIds?: unknown } = (await c.req.json().catch(() => null)) ?? {};
   if (!Array.isArray(body.deviceIds) || !body.deviceIds.every((d) => typeof d === "string")) {
     throw httpError(400, `deviceIds must be a list of ${noun} ids`);
   }
@@ -266,7 +266,7 @@ export const flmSubscriptionsOf = async (db: Pick<pg.PoolClient, "query">, chain
  */
 chains.put("/:id/flm-subscriptions", async (c) => {
   const id = c.req.param("id");
-  const body = await c.req.json<{ providerIds?: unknown }>();
+  const body: { providerIds?: unknown } = (await c.req.json().catch(() => null)) ?? {};
   if (!Array.isArray(body.providerIds) || !body.providerIds.every((d) => typeof d === "string")) {
     throw httpError(400, "providerIds must be a list of FLM provider ids");
   }
