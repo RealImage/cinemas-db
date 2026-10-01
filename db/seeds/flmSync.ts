@@ -63,13 +63,21 @@ type Run = {
 
 /** A provider's run history: mostly successful scheduled runs, a weekly full sync, a few partial or failed ones. */
 function runsFor(s: Source, seed: number, now: number): Run[] {
+  // The most recent scheduled time at or before now, stepping back a slot while the history would end after now
+  // (a run started just before now, or a long full sync, still finishing)
+  const every = s.everyHours * 3_600_000;
+  const anchor = new Date(now).setUTCHours(0, s.atMin, 0, 0);
+  for (let last = anchor + every * Math.floor((now - anchor) / every); ; last -= every) {
+    const runs = runsFrom(s, seed, last);
+    if (runs.every((r) => Date.parse(r.finished_at) <= now)) return runs;
+  }
+}
+
+function runsFrom(s: Source, seed: number, last: number): Run[] {
   const rand = prng(seed);
   const pick = <T>(xs: T[]) => xs[Math.floor(rand() * xs.length)];
   const runs: Run[] = [];
-  // The most recent scheduled time at or before now.
   const every = s.everyHours * 3_600_000;
-  const anchor = new Date(now).setUTCHours(0, s.atMin, 0, 0);
-  const last = anchor + every * Math.floor((now - anchor) / every);
   for (let i = 0; i < s.runs; i++) {
     const started = new Date(last - i * every + Math.floor(rand() * 50) * 1000);
     const r = rand();

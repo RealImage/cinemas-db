@@ -21,13 +21,22 @@ export const useFlmFeeds = () => useQuery({ queryKey: flmKeys.list, queryFn: () 
 export const useFlmFeed = (id: string | undefined) =>
   useQuery({ queryKey: flmKeys.detail(id ?? ""), queryFn: () => api.get<FlmFeed>(`/flm/${id}`), enabled: !!id });
 
+/** Syncs run on the server's schedule, so the status page polls; both queries share the interval to stay in step. */
+const SYNC_POLL_MS = 60_000;
+
 /** Each FLM provider's sync source and last outcome. */
 export const useFlmSyncStatus = () =>
-  useQuery({ queryKey: flmKeys.syncStatus, queryFn: () => api.get<FlmSyncSource[]>("/flm/sync-status") });
+  useQuery({
+    queryKey: flmKeys.syncStatus, queryFn: () => api.get<FlmSyncSource[]>("/flm/sync-status"),
+    refetchInterval: SYNC_POLL_MS,
+  });
 
 /** Sync runs of every provider, newest first. */
 export const useFlmSyncRuns = () =>
-  useQuery({ queryKey: flmKeys.syncRuns, queryFn: () => api.get<FlmSyncRun[]>("/flm/sync-status/runs") });
+  useQuery({
+    queryKey: flmKeys.syncRuns, queryFn: () => api.get<FlmSyncRun[]>("/flm/sync-status/runs"),
+    refetchInterval: SYNC_POLL_MS,
+  });
 
 const useInvalidateFlm = () => {
   const qc = useQueryClient();
