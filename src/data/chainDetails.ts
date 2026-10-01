@@ -42,6 +42,13 @@ export interface ChainSystems {
   ticketingInUse: (ChainSystemCount & { allowed: boolean })[];
   theatresWithoutTicketing: number;
   deliveryModes: { mode: "Physical" | "Network" | "Modem"; method: string; theatres: number }[];
+  /**
+   * The chain's official FLM providers (chain_flm_subscriptions), usually one or none, with the FLM feeds received
+   * from each for the chain's theatres (flm_feeds mapped to one of them).
+   */
+  flmSubscriptions: { id: string; name: string; feedsReceived: number }[];
+  /** Every FLM provider, for the picker. */
+  flmProviders: { id: string; name: string }[];
 }
 
 export interface ChainDeviceModel {

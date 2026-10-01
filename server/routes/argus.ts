@@ -3,10 +3,10 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { stream } from "hono/streaming";
 import { getConnInfo } from "@hono/node-server/conninfo";
-import { query } from "../db";
+import { pool, query } from "../db";
 import { httpError } from "../http";
 import { STATUSES, THEATRE_FROM, loadTheatre, rankedSearch, validate as validateTheatre, type TheatreInput } from "./theatres";
-import { CHAIN_DETAILS_SELECT, CHAIN_SELECT, callingCodes } from "./chains";
+import { CHAIN_DETAILS_SELECT, CHAIN_SELECT, callingCodes, flmSubscriptionsOf } from "./chains";
 import type { Chain } from "../../src/types";
 import { chainFormErrors, type ChainDetails } from "../../src/data/chainDetails";
 import {
@@ -227,7 +227,7 @@ const TOOLS: Record<string, Tool> = {
   },
 
   get_chain: {
-    description: "One chain's details by id or name: company, contact information, theatre count, allowed systems and its theatres per country.",
+    description: "One chain's details by id or name: company, contact information, theatre count, allowed systems, official FLM provider(s) and its theatres per country.",
     input_schema: { type: "object", properties: { ref: { type: "string", description: "Chain id or name" } }, required: ["ref"] },
     label: (i) => `Looking up chain ${quoted(i.ref)}`,
     run: async (input) => {
@@ -237,12 +237,14 @@ const TOOLS: Record<string, Tool> = {
       const byCountry = await query<{ country: string; theatres: number }>(
         `SELECT coalesce(nullif(country, ''), '(not set)') AS country, count(*)::int AS theatres FROM theatres
          WHERE chain_id = $1 AND status <> 'Deleted' GROUP BY 1 ORDER BY 2 DESC`, [found.id]);
+      const flm = await flmSubscriptionsOf(pool, found.id);
       return {
         id: ch.id, name: ch.name, displayName: ch.displayName, company: ch.companyName, status: ch.status,
         city: ch.cityLabel, postalCode: ch.postalCode, area: ch.area, headOfficeAddress: ch.headOfficeAddress,
         emails: ch.emails, phones: ch.phones.map((p) => `+${p.countryCode} ${p.number}`), owners: ch.owners.map((o) => o.name),
         theatreCount: ch.theatreCount, theatresByCountry: byCountry,
         tms: (ch.tms ?? []).map((x) => x.name), ticketingSystems: (ch.ticketingSystems ?? []).map((x) => x.name),
+        flmSubscriptions: flm.map((x) => x.name),
         updatedAt: ch.updatedAt, link: chainLink(ch.id),
       };
     },
