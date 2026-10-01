@@ -4,7 +4,8 @@ import { DataTable, Column } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FilterButton } from "@/components/ui/filter-drawer";
-import { Plus, Edit, Search, Upload, Archive } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Plus, Edit, Search, Upload, Archive, RefreshCw } from "lucide-react";
 import { useRetireTDLDevice, useTDLDevices } from "@/hooks/api/tdl";
 import { QueryState } from "@/components/ui/query-state";
 import { TDLDevice } from "@/types";
@@ -175,13 +176,21 @@ const TDLDevices = () => {
       transition={{ duration: 0.3 }}
       className="space-y-4"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-muted-foreground">
           Manage Trusted Device List (TDL) devices across all theatres
         </p>
-        <Button onClick={handleCreateDevice}>
-          <Plus className="h-4 w-4 mr-2" /> Add Device
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/theatre-device-management/tdl-devices/sync-status">
+              <RefreshCw className="h-4 w-4" />
+              Sync Status
+            </Link>
+          </Button>
+          <Button onClick={handleCreateDevice}>
+            <Plus className="h-4 w-4 mr-2" /> Add Device
+          </Button>
+        </div>
       </div>
 
       {/* Search + Filter trigger */}

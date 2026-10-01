@@ -3,6 +3,7 @@ import type pg from "pg";
 import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
 import { writeLogs } from "./theatres";
+import { SYNC_RUN_COUNTS, syncRunLimit } from "../syncStatus";
 import type { FlmFacilityDetails, FlmFeed } from "../../src/data/flmFeedsData";
 import type { FlmSyncRun, FlmSyncSource } from "../../src/data/flmSync";
 
@@ -33,9 +34,7 @@ export const flmSyncSources = () =>
            coalesce(s.enabled, false) AS enabled, coalesce(s.schedule, '') AS schedule,
            s.last_synced_at AS "lastSyncedAt", coalesce(s.last_status, 'Never') AS "lastStatus",
            s.last_message AS "lastMessage", coalesce(s.updated_by, '') AS "updatedBy", s.updated_at AS "updatedAt",
-           count(r.id) FILTER (WHERE r.started_at > now() - interval '24 hours')::int AS "runs24h",
-           count(r.id)::int AS "runs7d",
-           count(r.id) FILTER (WHERE r.status = 'Failed')::int AS "failed7d"
+           ${SYNC_RUN_COUNTS}
     FROM flm_providers p
     LEFT JOIN flm_sync_sources s ON s.provider_id = p.id
     LEFT JOIN flm_sync_runs r ON r.provider_id = p.id AND r.started_at > now() - interval '7 days'
@@ -49,12 +48,6 @@ const RUN_SELECT = `
          r.triggered_by AS "triggeredBy"
   FROM flm_sync_runs r JOIN flm_providers p ON p.id = r.provider_id`;
 
-const runLimit = (raw: string | undefined, fallback: number) => {
-  const n = Number(raw ?? fallback);
-  if (!Number.isInteger(n) || n < 1) throw httpError(400, "limit must be a positive integer");
-  return Math.min(n, 2000);
-};
-
 export const flmSyncRuns = (providerId: string | null, limit: number) =>
   query<FlmSyncRun>(
     `${RUN_SELECT} WHERE ($1::text IS NULL OR r.provider_id = $1) ORDER BY r.started_at DESC, r.id DESC LIMIT $2`,
@@ -64,14 +57,14 @@ export const flmSyncRuns = (providerId: string | null, limit: number) =>
 flm.get("/sync-status", async (c) => c.json(await flmSyncSources()));
 
 /** Runs of every provider, newest first. ?limit= (default 500, at most 2000) */
-flm.get("/sync-status/runs", async (c) => c.json(await flmSyncRuns(null, runLimit(c.req.query("limit"), 500))));
+flm.get("/sync-status/runs", async (c) => c.json(await flmSyncRuns(null, syncRunLimit(c.req.query("limit"), 500))));
 
 /** One provider's runs, newest first. ?limit= (default 100, at most 2000) */
 flm.get("/sync-status/:providerId/runs", async (c) => {
   const providerId = c.req.param("providerId");
   const [provider] = await query("SELECT 1 FROM flm_providers WHERE id = $1", [providerId]);
   if (!provider) throw notFound("FLM provider");
-  return c.json(await flmSyncRuns(providerId, runLimit(c.req.query("limit"), 100)));
+  return c.json(await flmSyncRuns(providerId, syncRunLimit(c.req.query("limit"), 100)));
 });
 
 /** Feed records not ignored, newest first. */
