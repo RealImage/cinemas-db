@@ -8,7 +8,7 @@ import { FormActions } from "@/components/ui/form-actions";
 import { QueryState } from "@/components/ui/query-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCredentialDevices } from "@/hooks/api/credentials";
-import { useChainSystems, useSetChainSystems } from "@/hooks/api/chains";
+import { useChainSystems, useSetChainFlmSubscriptions, useSetChainSystems } from "@/hooks/api/chains";
 import { common } from "@/i18n/common";
 import type { ChainDetails, ChainSystemCount, ChainSystems } from "@/data/chainDetails";
 
@@ -166,6 +166,101 @@ function SystemPicker({ kind, headingId, selected, onToggle }: {
   );
 }
 
+/**
+ * The chain's official FLM providers, with the FLM feeds received from each for its theatres. Usually one or none;
+ * several are allowed, with a note. Edit picks from every FLM provider.
+ */
+function FlmSubscriptionList({ chain, systems }: { chain: ChainDetails; systems: ChainSystems | undefined }) {
+  const save = useSetChainFlmSubscriptions();
+  const [editing, setEditing] = useState(false);
+  const subscriptions = systems?.flmSubscriptions ?? [];
+  const saved = subscriptions.map((p) => p.id);
+  const [selected, setSelected] = useState<string[]>(saved);
+  const savedKey = saved.join(",");
+  const headingId = "chain-flm-heading";
+
+  useEffect(() => {
+    setSelected(savedKey ? savedKey.split(",") : []);
+  }, [savedKey]);
+
+  const dirty = [...selected].sort().join(",") !== [...saved].sort().join(",");
+  const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const cancel = () => { setSelected(saved); setEditing(false); };
+
+  const handleSave = () => {
+    save.mutate({ id: chain.id, providerIds: selected }, {
+      onSuccess: () => { toast.success(`Updated FLM Subscriptions for ${chain.name}`); setEditing(false); },
+      onError: (err) => toast.error(`Could not update ${chain.name}: ${err.message}`),
+    });
+  };
+
+  return (
+    <Card className="space-y-3 p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 id={headingId} className="text-base font-semibold">FLM Subscriptions</h3>
+          <p className="text-sm text-muted-foreground">The official FLM provider for {chain.name}. Usually one, or none.</p>
+        </div>
+        {!editing && (
+          <Button variant="outline" size="sm" onClick={() => setEditing(true)} disabled={!systems} aria-label="Edit FLM Subscriptions">
+            <Pencil className="h-4 w-4" /> Edit
+          </Button>
+        )}
+      </div>
+      {editing ? (
+        <>
+          <div role="group" aria-labelledby={headingId} className="grid max-h-72 grid-cols-1 gap-1 overflow-y-auto rounded-md border p-2 md:grid-cols-2">
+            {(systems?.flmProviders ?? []).map((p) => (
+              <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-black/[.03]">
+                <Checkbox checked={selected.includes(p.id)} onCheckedChange={() => toggle(p.id)} />
+                <span>{p.name}</span>
+              </label>
+            ))}
+          </div>
+          {selected.length > 1 && (
+            <p className="text-xs text-muted-foreground" role="status">Most chains have one official provider.</p>
+          )}
+        </>
+      ) : (
+        <div className="overflow-hidden rounded-md border">
+          <Table aria-labelledby={headingId}>
+            <TableHeader>
+              <TableRow>
+                <TableHead>FLM provider</TableHead>
+                <TableHead className="w-40 text-right">Feeds received</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {!systems && (
+                <TableRow><TableCell colSpan={2} className="text-center text-sm text-muted-foreground">…</TableCell></TableRow>
+              )}
+              {!!systems && subscriptions.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={2} className="text-center text-sm text-muted-foreground">
+                    No FLM provider set for this chain. Use Edit to add one.
+                  </TableCell>
+                </TableRow>
+              )}
+              {subscriptions.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="text-sm">{p.name}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums">{p.feedsReceived}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+      {editing && (
+        <FormActions>
+          <Button variant="outline" onClick={cancel} disabled={save.isPending}>{common.cancel}</Button>
+          <Button onClick={handleSave} loading={save.isPending} disabled={!dirty}>{common.save}</Button>
+        </FormActions>
+      )}
+    </Card>
+  );
+}
+
 /** A read-only "name → theatres" table, with a trailing "Not set" row when some theatres have none. */
 function CountTable({ title, nameHeader, rows, notSet, empty }: {
   title: string;
@@ -230,10 +325,11 @@ export function ChainSystemsTab({ chain }: { chain: ChainDetails }) {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChainSystemList chain={chain} kind="TMS" systems={systems.data} />
         <ChainSystemList chain={chain} kind="Ticketing System" systems={systems.data} />
+        <FlmSubscriptionList chain={chain} systems={systems.data} />
+        <QueryState query={systems} label="content delivery modes">
+          {(s) => <DeliveryModes systems={s} />}
+        </QueryState>
       </div>
-      <QueryState query={systems} label="content delivery modes">
-        {(s) => <DeliveryModes systems={s} />}
-      </QueryState>
     </div>
   );
 }

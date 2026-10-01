@@ -70,3 +70,14 @@ export const useSetChainSystems = (kind: "tms" | "ticketing-systems") => {
     },
   });
 };
+
+/** Replace a chain's official FLM providers. */
+export const useSetChainFlmSubscriptions = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, providerIds }: { id: string; providerIds: string[] }) =>
+      api.put<{ flmSubscriptions: { id: string; name: string }[] }>(`/chains/${id}/flm-subscriptions`, { providerIds }),
+    // chainKeys.all covers the chain's systems and logs too
+    onSuccess: () => qc.invalidateQueries({ queryKey: chainKeys.all }),
+  });
+};

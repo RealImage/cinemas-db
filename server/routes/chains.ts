@@ -254,6 +254,45 @@ const putChainSystems = (kind: SystemKind) => async (c: Context) => {
 chains.put("/:id/tms", putChainSystems("TMS"));
 chains.put("/:id/ticketing-systems", putChainSystems("Ticketing System"));
 
+/** A chain's official FLM providers, by name. */
+export const flmSubscriptionsOf = async (db: Pick<pg.PoolClient, "query">, chainId: string) =>
+  (await db.query<{ id: string; name: string }>(
+    `SELECT p.id, p.name FROM chain_flm_subscriptions s JOIN flm_providers p ON p.id = s.provider_id
+     WHERE s.chain_id = $1 ORDER BY lower(p.name)`, [chainId])).rows;
+
+/**
+ * Replace a chain's official FLM providers. Body: { providerIds }. Usually one or none, but several are allowed;
+ * nothing else references them, so any can be removed.
+ */
+chains.put("/:id/flm-subscriptions", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json<{ providerIds?: unknown }>();
+  if (!Array.isArray(body.providerIds) || !body.providerIds.every((d) => typeof d === "string")) {
+    throw httpError(400, "providerIds must be a list of FLM provider ids");
+  }
+  const providerIds = [...new Set(body.providerIds as string[])];
+  const flmSubscriptions = await transaction(async (client) => {
+    await lockChain(client, id);
+    const { rows: found } = await client.query<{ id: string }>(
+      "SELECT id FROM flm_providers WHERE id = ANY($1) FOR SHARE", [providerIds]);
+    const unknown = providerIds.filter((p) => !found.some((f) => f.id === p));
+    if (unknown.length) throw httpError(400, `Not an FLM provider: ${unknown.join(", ")}`);
+    const before = await flmSubscriptionsOf(client, id);
+    await client.query("DELETE FROM chain_flm_subscriptions WHERE chain_id = $1 AND NOT (provider_id = ANY($2))", [id, providerIds]);
+    await client.query(
+      `INSERT INTO chain_flm_subscriptions (chain_id, provider_id, updated_by)
+       SELECT $1, unnest($2::text[]), $3 ON CONFLICT DO NOTHING`, [id, providerIds, CURRENT_USER]);
+    await client.query("UPDATE chains SET updated_by = $2 WHERE id = $1", [id, CURRENT_USER]);
+    const after = await flmSubscriptionsOf(client, id);
+    const names = (list: { name: string }[]) => list.map((p) => p.name).join(", ") || null;
+    if (names(before) !== names(after)) {
+      await writeLogs(client, id, [{ section: "Theatre Systems", field: "FLM Subscriptions", oldValue: names(before), newValue: names(after) }]);
+    }
+    return after;
+  });
+  return c.json({ flmSubscriptions });
+});
+
 /** The chain's theatres that aren't Deleted, as a CTE. */
 const CHAIN_THEATRES = "chain_theatres AS (SELECT * FROM theatres WHERE chain_id = $1 AND status <> 'Deleted')";
 
@@ -273,7 +312,7 @@ chains.get("/:id/systems", async (c) => {
   const without = async (kind: string) => (await query<{ n: number }>(
     `WITH ${CHAIN_THEATRES} SELECT count(*)::int AS n FROM chain_theatres t
      WHERE NOT EXISTS (SELECT 1 FROM theatre_systems s WHERE s.theatre_id = t.id AND s.kind = $2)`, [chain.id, kind]))[0].n;
-  const [tmsInUse, theatresWithoutTms, ticketingInUse, theatresWithoutTicketing, deliveryModes] = await Promise.all([
+  const [tmsInUse, theatresWithoutTms, ticketingInUse, theatresWithoutTicketing, deliveryModes, flmSubscriptions, flmProviders] = await Promise.all([
     systemCounts("TMS"), without("TMS"), systemCounts("Ticketing System"), without("Ticketing System"),
     query<ChainSystems["deliveryModes"][number]>(
       `WITH ${CHAIN_THEATRES}, methods AS (
@@ -287,6 +326,13 @@ chains.get("/:id/systems", async (c) => {
        SELECT mode, method, count(DISTINCT id)::int AS theatres FROM methods
        GROUP BY mode, method ORDER BY array_position(ARRAY['Physical', 'Network', 'Modem'], mode), count(DISTINCT id) DESC, method`,
       [chain.id]),
+    query<ChainSystems["flmSubscriptions"][number]>(
+      `WITH ${CHAIN_THEATRES}
+       SELECT p.id, p.name, (SELECT count(*)::int FROM flm_feeds f JOIN chain_theatres t ON t.id = f.mapped_theatre_id
+                             WHERE f.source = p.name) AS "feedsReceived"
+       FROM chain_flm_subscriptions s JOIN flm_providers p ON p.id = s.provider_id
+       WHERE s.chain_id = $1 ORDER BY lower(p.name)`, [chain.id]),
+    query<ChainSystems["flmProviders"][number]>("SELECT id, name FROM flm_providers ORDER BY lower(name)"),
   ]);
   const allowed = new Set((chain.tms ?? []).map((t) => t.id));
   const allowedTicketing = new Set((chain.ticketingSystems ?? []).map((t) => t.id));
@@ -299,6 +345,8 @@ chains.get("/:id/systems", async (c) => {
     ticketingInUse: ticketingInUse.map((t) => ({ ...t, allowed: allowedTicketing.has(t.id) })),
     theatresWithoutTicketing,
     deliveryModes,
+    flmSubscriptions,
+    flmProviders,
   };
   return c.json(result);
 });
