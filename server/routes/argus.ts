@@ -7,6 +7,7 @@ import { pool, query } from "../db";
 import { httpError } from "../http";
 import { STATUSES, THEATRE_FROM, loadTheatre, rankedSearch, validate as validateTheatre, type TheatreInput } from "./theatres";
 import { CHAIN_DETAILS_SELECT, CHAIN_SELECT, callingCodes, flmSubscriptionsOf } from "./chains";
+import { flmSyncRuns, flmSyncSources } from "./flm";
 import type { Chain } from "../../src/types";
 import { chainFormErrors, type ChainDetails } from "../../src/data/chainDetails";
 import {
@@ -250,6 +251,23 @@ const TOOLS: Record<string, Tool> = {
     },
   },
 
+  flm_sync_status: {
+    description:
+      "FLM feed sync status per provider (MACCS, DCIP, Qube Radar, Cinergy, Sony, KDMx): sync URL, schedule, enabled, " +
+      "last sync time, status and message, and run counts for the last 24 hours and 7 days. With `provider`, also its " +
+      "recent runs (newest first: status, theatres received / updated / new, errors, message).",
+    input_schema: { type: "object", properties: { provider: { type: "string", description: "Provider name or id; omit for all" }, limit: { type: "integer", maximum: LIST_LIMIT } } },
+    label: (i) => (str(i.provider) ? `Checking ${str(i.provider)} FLM sync status` : "Checking FLM sync status"),
+    run: async (input) => {
+      const sources = await flmSyncSources();
+      const ref = str(input.provider).toLowerCase();
+      if (!ref) return { providers: sources, link: "/theatres/flm-feeds/sync-status" };
+      const source = sources.find((s) => s.providerId === ref || s.providerName.toLowerCase() === ref);
+      if (!source) throw new ToolError(`Unknown FLM provider; known: ${sources.map((s) => s.providerName).join(", ")}`);
+      return { provider: source, recentRuns: await flmSyncRuns(source.providerId, limitOf(input.limit)), link: "/theatres/flm-feeds/sync-status" };
+    },
+  },
+
   count_theatres: {
     description: "Count theatres (not Deleted), grouped by status, country, state, city or chain, optionally filtered. For questions like \"how many active theatres in India\".",
     input_schema: {
@@ -452,7 +470,7 @@ CinemaDB holds:
 
 Rules:
 - Use the tools to answer. Never guess names, ids, counts or values; if the tools don't have it, say so.
-- Link every record you mention with a markdown link to its page, using the tool results' \`link\` values: theatres [Name](/theatre/{id}/edit), chains [Name](/chains/{id}). Other pages: Theatre List (/theatres/list), Chains (/chains), Credentials Manager (/theatre-device-management/credentials-manager).
+- Link every record you mention with a markdown link to its page, using the tool results' \`link\` values: theatres [Name](/theatre/{id}/edit), chains [Name](/chains/{id}). Other pages: Theatre List (/theatres/list), Chains (/chains), FLM Sync Status (/theatres/flm-feeds/sync-status), Credentials Manager (/theatre-device-management/credentials-manager).
 - To change data, call propose_theatre_update or propose_chain_update. You never change anything yourself: a proposal is shown to the user as a card, and nothing is saved until they apply it. Never say a change was made; say you've prepared it for them to review and apply. Only the fields those tools list can be changed from chat; for anything else, point the user to the record's page.
 - If a name matches several records, ask which one, listing the candidates.
 - Be concise: short answers, bullet lists or small markdown tables for several records, and totals when you only show some.

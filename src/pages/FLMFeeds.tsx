@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, MoreHorizontal, X } from "lucide-react";
+import { Search, MoreHorizontal, RefreshCw, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
@@ -144,6 +144,12 @@ const FLMFeeds = () => {
             />
           </div>
           <FilterButton count={activeFilters.length} onClick={() => setFilterOpen(true)} />
+          <Button variant="outline" className="shrink-0" asChild>
+            <Link to="/theatres/flm-feeds/sync-status">
+              <RefreshCw className="h-4 w-4" />
+              Sync Status
+            </Link>
+          </Button>
         </div>
       </div>
 

@@ -7,6 +7,7 @@ import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
 import Theatres from "./pages/Theatres";
 import FLMFeeds from "./pages/FLMFeeds";
+import FLMSyncStatus from "./pages/FLMSyncStatus";
 import FlmFeedDetails from "./pages/FlmFeedDetails";
 import EditTheatre from "./pages/EditTheatre";
 import Chains from "./pages/Chains";
@@ -67,6 +68,7 @@ const App = () => (
             <Route path="/theatres" element={<Navigate to="/theatres/list" replace />} />
             <Route path="/theatres/list" element={<Theatres />} />
             <Route path="/theatres/flm-feeds" element={<FLMFeeds />} />
+            <Route path="/theatres/flm-feeds/sync-status" element={<FLMSyncStatus />} />
             <Route path="/theatres/flm-feeds/:id" element={<FlmFeedDetails />} />
             <Route path="/theatres/dashboard" element={<Navigate to="/approvals-conflicts" replace />} />
             <Route path="/theatre/:id/edit" element={<EditTheatre />} />

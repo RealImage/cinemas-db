@@ -29,6 +29,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
     if (path === "/") return "Dashboard";
     if (path === "/theatres" || path === "/theatres/list") return "Theatre List";
     if (path === "/theatres/flm-feeds") return "FLM Feeds";
+    if (path === "/theatres/flm-feeds/sync-status") return "FLM Sync Status";
     if (path.startsWith("/theatres/flm-feeds/")) return "FLM Feed Details";
     if (path.startsWith("/theatre/") && path.endsWith("/edit")) return "Edit Theatre";
     if (path === "/chains") return "Chains";
