@@ -8,6 +8,7 @@ import { httpError } from "../http";
 import { STATUSES, THEATRE_FROM, loadTheatre, rankedSearch, validate as validateTheatre, type TheatreInput } from "./theatres";
 import { CHAIN_DETAILS_SELECT, CHAIN_SELECT, callingCodes, flmSubscriptionsOf } from "./chains";
 import { flmSyncRuns, flmSyncSources } from "./flm";
+import { tdlSyncRuns, tdlSyncSources } from "./tdl";
 import type { Chain } from "../../src/types";
 import { chainFormErrors, type ChainDetails } from "../../src/data/chainDetails";
 import {
@@ -42,6 +43,7 @@ const like = (v: string) => `%${v.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
 
 const theatreLink = (id: string) => `/theatre/${id}/edit`;
 const chainLink = (id: string) => `/chains/${id}`;
+const TDL_SYNC_LINK = "/theatre-device-management/tdl-devices/sync-status";
 
 /**
  * A live theatre by id, code, UUID or exact name, else the theatres whose name contains `ref`; `candidates` when
@@ -268,6 +270,24 @@ const TOOLS: Record<string, Tool> = {
     },
   },
 
+  tdl_sync_status: {
+    description:
+      "TDL device certificate sync status per manufacturer (new TDL devices are added from the certificates manufacturers " +
+      "share on their FTP sites): FTP site URL and root directory, schedule, enabled, last sync time, status and message, " +
+      "and run counts for the last 24 hours and 7 days. With `manufacturer`, also its recent runs (newest first: status, " +
+      "files found, certificates parsed, devices added / updated, invalid certificates, errors, message).",
+    input_schema: { type: "object", properties: { manufacturer: { type: "string", description: "Manufacturer name, e.g. Barco; omit for all" }, limit: { type: "integer", maximum: LIST_LIMIT } } },
+    label: (i) => (str(i.manufacturer) ? `Checking ${str(i.manufacturer)} TDL sync status` : "Checking TDL sync status"),
+    run: async (input) => {
+      const sources = await tdlSyncSources();
+      const ref = str(input.manufacturer).toLowerCase();
+      if (!ref) return { manufacturers: sources, link: TDL_SYNC_LINK };
+      const source = sources.find((s) => s.manufacturer.toLowerCase() === ref);
+      if (!source) throw new ToolError(`Unknown TDL manufacturer; known: ${sources.map((s) => s.manufacturer).join(", ")}`);
+      return { manufacturer: source, recentRuns: await tdlSyncRuns(source.manufacturer, limitOf(input.limit)), link: TDL_SYNC_LINK };
+    },
+  },
+
   count_theatres: {
     description: "Count theatres (not Deleted), grouped by status, country, state, city or chain, optionally filtered. For questions like \"how many active theatres in India\".",
     input_schema: {
@@ -470,7 +490,7 @@ CinemaDB holds:
 
 Rules:
 - Use the tools to answer. Never guess names, ids, counts or values; if the tools don't have it, say so.
-- Link every record you mention with a markdown link to its page, using the tool results' \`link\` values: theatres [Name](/theatre/{id}/edit), chains [Name](/chains/{id}). Other pages: Theatre List (/theatres/list), Chains (/chains), FLM Sync Status (/theatres/flm-feeds/sync-status), Credentials Manager (/theatre-device-management/credentials-manager).
+- Link every record you mention with a markdown link to its page, using the tool results' \`link\` values: theatres [Name](/theatre/{id}/edit), chains [Name](/chains/{id}). Other pages: Theatre List (/theatres/list), Chains (/chains), FLM Sync Status (/theatres/flm-feeds/sync-status), TDL Sync Status (/theatre-device-management/tdl-devices/sync-status), Credentials Manager (/theatre-device-management/credentials-manager).
 - To change data, call propose_theatre_update or propose_chain_update. You never change anything yourself: a proposal is shown to the user as a card, and nothing is saved until they apply it. Never say a change was made; say you've prepared it for them to review and apply. Only the fields those tools list can be changed from chat; for anything else, point the user to the record's page.
 - If a name matches several records, ask which one, listing the candidates.
 - Be concise: short answers, bullet lists or small markdown tables for several records, and totals when you only show some.

@@ -40,6 +40,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
     if (path.startsWith("/theatre-device-management/screen-devices/") && path.endsWith("/edit"))
       return "Edit Screen Device List";
     if (path === "/theatre-device-management/tdl-devices" || path === "/tdl-devices") return "TDL Devices";
+    if (path === "/theatre-device-management/tdl-devices/sync-status") return "TDL Sync Status";
     if (path === "/theatre-device-management/credentials-manager") return "Credentials Manager";
     if (path.startsWith("/theatre-device-management/credentials-manager/") && path.endsWith("/credentials"))
       return "Edit Device Credentials";

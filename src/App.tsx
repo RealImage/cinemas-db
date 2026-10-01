@@ -13,6 +13,7 @@ import EditTheatre from "./pages/EditTheatre";
 import Chains from "./pages/Chains";
 import ChainEdit from "./pages/ChainEdit";
 import TDLDevices from "./pages/TDLDevices";
+import TDLSyncStatus from "./pages/TDLSyncStatus";
 import CredentialsManager from "./pages/CredentialsManager";
 import DeviceCredentials from "./pages/DeviceCredentials";
 import ScreenDeviceManagement from "./pages/ScreenDeviceManagement";
@@ -80,6 +81,7 @@ const App = () => (
             <Route path="/theatre-device-management/screen-devices" element={<ScreenDeviceManagement />} />
             <Route path="/theatre-device-management/screen-devices/:id/edit" element={<EditScreenDeviceList />} />
             <Route path="/theatre-device-management/tdl-devices" element={<TDLDevices />} />
+            <Route path="/theatre-device-management/tdl-devices/sync-status" element={<TDLSyncStatus />} />
             <Route path="/theatre-device-management/credentials-manager" element={<CredentialsManager />} />
             <Route path="/theatre-device-management/credentials-manager/:id/credentials" element={<DeviceCredentials />} />
             {/* Qube Appliances Routes */}
