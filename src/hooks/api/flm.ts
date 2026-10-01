@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { FlmFeed } from "@/data/flmFeedsData";
 import type { FlmSyncRun, FlmSyncSource } from "@/data/flmSync";
+import { SYNC_POLL_MS } from "@/data/syncStatus";
 import { theatreKeys } from "./theatres";
 
 export const flmKeys = {
@@ -20,9 +21,6 @@ export const useFlmFeeds = () => useQuery({ queryKey: flmKeys.list, queryFn: () 
 
 export const useFlmFeed = (id: string | undefined) =>
   useQuery({ queryKey: flmKeys.detail(id ?? ""), queryFn: () => api.get<FlmFeed>(`/flm/${id}`), enabled: !!id });
-
-/** Syncs run on the server's schedule, so the status page polls; both queries share the interval to stay in step. */
-const SYNC_POLL_MS = 60_000;
 
 /** Each FLM provider's sync source and last outcome. */
 export const useFlmSyncStatus = () =>

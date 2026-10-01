@@ -79,8 +79,10 @@ anchored AS (
   FROM cfg c
 ),
 latest AS (
-  -- The most recent scheduled time at or before now.
-  SELECT a.*, a.anchor + a.every * floor(extract(epoch FROM now() - a.anchor) / extract(epoch FROM a.every)) AS last_at
+  -- The most recent scheduled time at least 30 minutes before now, so the newest sample run (start jitter under a
+  -- minute plus its duration) has finished by now
+  SELECT a.*, a.anchor + a.every * floor(extract(epoch FROM now() - interval '30 minutes' - a.anchor)
+                                         / extract(epoch FROM a.every)) AS last_at
   FROM anchored a
 ),
 gen AS (

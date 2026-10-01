@@ -2,6 +2,9 @@
 export type SyncRunStatus = "Success" | "Partial" | "Failed" | "Running";
 export type SyncStatusValue = SyncRunStatus | "Never";
 
+/** Syncs run on the server's schedule, so status pages poll; source and run queries share it to stay in step. */
+export const SYNC_POLL_MS = 60_000;
+
 export const SYNC_RUN_STATUSES: SyncRunStatus[] = ["Success", "Partial", "Failed", "Running"];
 
 /** A sync source's last outcome and recent run counts, as both sync-status endpoints return them. */
