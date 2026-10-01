@@ -4,6 +4,7 @@ import { query, transaction } from "../db";
 import { CURRENT_USER, httpError, notFound } from "../http";
 import { writeLogs } from "./theatres";
 import type { FlmFacilityDetails, FlmFeed } from "../../src/data/flmFeedsData";
+import type { FlmSyncRun, FlmSyncSource } from "../../src/data/flmSync";
 
 export const flm = new Hono();
 
@@ -19,6 +20,58 @@ const stripNulls = (f: FlmFeed) => ({
   ...f,
   mappedTheatreId: f.mappedTheatreId ?? undefined,
   details: f.details ?? undefined,
+});
+
+// ---------------------------------------------------------------------------
+// Sync status (read-only). Registered before GET /:id, which would otherwise match "sync-status".
+// ---------------------------------------------------------------------------
+
+/** Every FLM provider with its sync source (if any), last outcome and run counts for the last 24 hours and 7 days. */
+export const flmSyncSources = () =>
+  query<FlmSyncSource>(`
+    SELECT p.id AS "providerId", p.name AS "providerName", coalesce(s.sync_url, '') AS "syncUrl",
+           coalesce(s.enabled, false) AS enabled, coalesce(s.schedule, '') AS schedule,
+           s.last_synced_at AS "lastSyncedAt", coalesce(s.last_status, 'Never') AS "lastStatus",
+           s.last_message AS "lastMessage", coalesce(s.updated_by, '') AS "updatedBy", s.updated_at AS "updatedAt",
+           count(r.id) FILTER (WHERE r.started_at > now() - interval '24 hours')::int AS "runs24h",
+           count(r.id)::int AS "runs7d",
+           count(r.id) FILTER (WHERE r.status = 'Failed')::int AS "failed7d"
+    FROM flm_providers p
+    LEFT JOIN flm_sync_sources s ON s.provider_id = p.id
+    LEFT JOIN flm_sync_runs r ON r.provider_id = p.id AND r.started_at > now() - interval '7 days'
+    GROUP BY p.id, s.provider_id
+    ORDER BY lower(p.name)`);
+
+const RUN_SELECT = `
+  SELECT r.id::text AS id, r.provider_id AS "providerId", p.name AS "providerName", r.started_at AS "startedAt",
+         r.finished_at AS "finishedAt", r.status, r.theatres_received AS "theatresReceived",
+         r.theatres_updated AS "theatresUpdated", r.theatres_new AS "theatresNew", r.errors, r.message,
+         r.triggered_by AS "triggeredBy"
+  FROM flm_sync_runs r JOIN flm_providers p ON p.id = r.provider_id`;
+
+const runLimit = (raw: string | undefined, fallback: number) => {
+  const n = Number(raw ?? fallback);
+  if (!Number.isInteger(n) || n < 1) throw httpError(400, "limit must be a positive integer");
+  return Math.min(n, 2000);
+};
+
+export const flmSyncRuns = (providerId: string | null, limit: number) =>
+  query<FlmSyncRun>(
+    `${RUN_SELECT} WHERE ($1::text IS NULL OR r.provider_id = $1) ORDER BY r.started_at DESC, r.id DESC LIMIT $2`,
+    [providerId, limit],
+  );
+
+flm.get("/sync-status", async (c) => c.json(await flmSyncSources()));
+
+/** Runs of every provider, newest first. ?limit= (default 500, at most 2000) */
+flm.get("/sync-status/runs", async (c) => c.json(await flmSyncRuns(null, runLimit(c.req.query("limit"), 500))));
+
+/** One provider's runs, newest first. ?limit= (default 100, at most 2000) */
+flm.get("/sync-status/:providerId/runs", async (c) => {
+  const providerId = c.req.param("providerId");
+  const [provider] = await query("SELECT 1 FROM flm_providers WHERE id = $1", [providerId]);
+  if (!provider) throw notFound("FLM provider");
+  return c.json(await flmSyncRuns(providerId, runLimit(c.req.query("limit"), 100)));
 });
 
 /** Feed records not ignored, newest first. */

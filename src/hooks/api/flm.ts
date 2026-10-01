@@ -1,12 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { FlmFeed } from "@/data/flmFeedsData";
+import type { FlmSyncRun, FlmSyncSource } from "@/data/flmSync";
 import { theatreKeys } from "./theatres";
 
 export const flmKeys = {
   all: ["flm"] as const,
   list: ["flm", "list"] as const,
   detail: (id: string) => ["flm", "detail", id] as const,
+  syncStatus: ["flm", "sync-status"] as const,
+  syncRuns: ["flm", "sync-status", "runs"] as const,
 };
 
 export type FlmFieldKey =
@@ -17,6 +20,14 @@ export const useFlmFeeds = () => useQuery({ queryKey: flmKeys.list, queryFn: () 
 
 export const useFlmFeed = (id: string | undefined) =>
   useQuery({ queryKey: flmKeys.detail(id ?? ""), queryFn: () => api.get<FlmFeed>(`/flm/${id}`), enabled: !!id });
+
+/** Each FLM provider's sync source and last outcome. */
+export const useFlmSyncStatus = () =>
+  useQuery({ queryKey: flmKeys.syncStatus, queryFn: () => api.get<FlmSyncSource[]>("/flm/sync-status") });
+
+/** Sync runs of every provider, newest first. */
+export const useFlmSyncRuns = () =>
+  useQuery({ queryKey: flmKeys.syncRuns, queryFn: () => api.get<FlmSyncRun[]>("/flm/sync-status/runs") });
 
 const useInvalidateFlm = () => {
   const qc = useQueryClient();

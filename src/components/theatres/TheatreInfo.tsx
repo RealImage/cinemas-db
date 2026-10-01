@@ -34,7 +34,8 @@ function SummaryFields({ summary }: { summary: Omit<TheatreSummary, "id"> }) {
   );
 }
 
-function CopyButton({ label, value }: { label: string; value: string }) {
+/** An icon button that copies `value` to the clipboard, with a toast ("<label> copied"). */
+export function CopyButton({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
